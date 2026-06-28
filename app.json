@@ -1,21 +1,28 @@
 {
   "expo": {
-    "name": "pawse",
+    "name": "Pawse",
     "slug": "pawse",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/pawse-icon.png",
     "scheme": "pawse",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0a0a0f",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "bundleIdentifier": "film.martini.pawse",
+      "buildNumber": "1",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCalendarsFullAccessUsageDescription": "Pawse adds your classes, study blocks, and deadlines to your calendar so your whole week is in one place.",
+        "NSCalendarsWriteOnlyAccessUsageDescription": "Pawse adds your study schedule and deadlines to your calendar.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "film.martini.pawse",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#ffd1dc",
+        "foregroundImage": "./assets/images/pawse-splash.png"
       },
       "predictiveBackGestureEnabled": false
     },
@@ -28,13 +35,32 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#0a0a0f",
+          "image": "./assets/images/pawse-splash.png",
+          "imageWidth": 180,
           "android": {
-            "image": "./assets/images/splash-icon.png",
-            "imageWidth": 76
+            "backgroundColor": "#0a0a0f",
+            "image": "./assets/images/pawse-splash.png",
+            "imageWidth": 160
           }
         }
-      ]
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Pawse adds your classes, study blocks, and deadlines to your calendar."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Pawse reads your class timetable photo to build your schedule.",
+          "cameraPermission": "Pawse can snap a photo of your timetable to build your schedule."
+        }
+      ],
+      "expo-sharing",
+      "@react-native-community/datetimepicker",
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true,
