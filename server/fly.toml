@@ -1,0 +1,16 @@
+# Fly.io config for the Pawse backend. Rename `app` to something unique,
+# then: fly launch --no-deploy  (once)  ->  fly secrets set FAL_KEY=...  ->  fly deploy
+app = "pawse-server"
+primary_region = "iad"
+
+[build]
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+[env]
+  PORT = "8787"
