@@ -2,7 +2,7 @@
 
 **Study smarter. Stress less.** Your calm in college life.
 
-Pawse is an iOS app (Expo / React Native) where a student drops in their **class
+Pawse is an Chrome extension/website/iOS app (Expo / React Native) where a student drops in their **class
 schedule** (a photo of a timetable or typed text) plus their **tasks and
 deadlines**, and an AI builds a balanced, doable **week schedule** — classes,
 focused study blocks, breaks, and deadline markers — that finishes everything
