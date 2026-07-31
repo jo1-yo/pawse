@@ -10,7 +10,7 @@ before it's due. The schedule is **manually editable** (tap any block to rename,
 nudge its time, move its day, or delete it). One tap exports the whole week to
 **Apple Calendar**, or to **Google Calendar / anything** via a shareable `.ics`.
 
-The UI is a single, responsive **planner**: a Tasks box and a Schedule box,
+The UI is a single **planner**: a Tasks box and a Schedule box,
 side-by-side on wide screens (iPad / web) and stacked on a phone.
 
 This repo has two parts:
