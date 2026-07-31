@@ -7,6 +7,6 @@
   "side_panel": { "default_path": "sidepanel.html" },
   "background": { "service_worker": "background.js" },
   "permissions": ["sidePanel", "clipboardRead"],
-  "host_permissions": ["http://localhost:8787/*"],
+  "host_permissions": ["https://pawse-server.onrender.com/*"],
   "icons": { "128": "icon-128.png" }
 }
