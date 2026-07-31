@@ -1,39 +1,32 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { C } from '@/components/ui';
 
-import { C, Text } from '@/components/ui';
-import { Radius, Spacing } from '@/constants/theme';
-import { formatDay, shiftDate } from '@/lib/datetime';
-
-/** Web date field: nudge by day with –/+ (no native picker on web). */
+/**
+ * Web date field: a real `<input type="date">` — the student can type
+ * month/day or open the browser's native date picker, instead of tapping
+ * –/+ one day at a time. value/onChange use "YYYY-MM-DD" (exactly what the
+ * input reads and emits). Native uses the OS picker in DateField.tsx.
+ */
 export function DateField({ value, onChange }: { value: string; onChange: (date: string) => void }) {
   return (
-    <View style={styles.row}>
-      <Pressable onPress={() => onChange(shiftDate(value, -1))} hitSlop={6} style={styles.btn}>
-        <Text variant="label" color={C.text}>
-          –
-        </Text>
-      </Pressable>
-      <Text variant="label" color={C.tint} style={styles.value}>
-        {formatDay(value)}
-      </Text>
-      <Pressable onPress={() => onChange(shiftDate(value, 1))} hitSlop={6} style={styles.btn}>
-        <Text variant="label" color={C.text}>
-          +
-        </Text>
-      </Pressable>
-    </View>
+    <input
+      type="date"
+      value={value}
+      onChange={(e) => e.target.value && onChange(e.target.value)}
+      style={webFieldStyle}
+    />
   );
 }
 
-const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  btn: {
-    width: 28,
-    height: 28,
-    borderRadius: Radius.sm,
-    backgroundColor: C.backgroundSelected,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  value: { minWidth: 64, textAlign: 'center' },
-});
+/** Shared dark-theme styling for the web date/time inputs. */
+export const webFieldStyle = {
+  fontFamily: 'DMSans_600SemiBold, system-ui, sans-serif',
+  fontSize: 15,
+  color: C.text,
+  background: C.background,
+  border: `1px solid ${C.border}`,
+  borderRadius: 10,
+  padding: '7px 12px',
+  colorScheme: 'dark',
+  outline: 'none',
+  cursor: 'pointer',
+};

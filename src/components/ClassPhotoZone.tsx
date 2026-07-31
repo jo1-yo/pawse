@@ -10,12 +10,14 @@ import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { C, Text } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
+import { readScheduleImage } from '@/lib/classPhoto';
 import { toast } from '@/lib/toast';
 import { usePlanStore } from '@/store/usePlanStore';
 
 export function ClassPhotoZone() {
   const scheduleImageBase64 = usePlanStore((s) => s.scheduleImageBase64);
   const setScheduleImage = usePlanStore((s) => s.setScheduleImage);
+  const parsingClasses = usePlanStore((s) => s.parsingClasses);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
 
   async function pick(fromCamera: boolean) {
@@ -33,6 +35,7 @@ export function ClassPhotoZone() {
     if (asset?.base64) {
       setScheduleImage(asset.base64, asset.mimeType ?? 'image/jpeg');
       setPreviewUri(asset.uri);
+      void readScheduleImage();
     }
   }
 
@@ -50,8 +53,8 @@ export function ClassPhotoZone() {
           <Text variant="label" color={C.text}>
             Timetable attached
           </Text>
-          <Text variant="caption" color={C.textMuted}>
-            Pawse will read your classes
+          <Text variant="caption" color={parsingClasses ? C.tint : C.textMuted}>
+            {parsingClasses ? 'Reading your classes…' : 'Classes it finds appear in your list'}
           </Text>
         </View>
         <Pressable onPress={() => { setScheduleImage(null, null); setPreviewUri(null); }} hitSlop={8}>

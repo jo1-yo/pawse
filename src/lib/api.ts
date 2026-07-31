@@ -3,7 +3,7 @@
  * does all LLM work; the app never sees a model key.
  */
 
-import type { ChatMessage, Plan, PlanRequest } from '@/types/plan';
+import type { ChatMessage, Course, Plan, PlanRequest } from '@/types/plan';
 
 export class ApiError extends Error {}
 
@@ -50,6 +50,21 @@ async function postJson<T>(
 
 export function generatePlan(baseUrl: string, req: PlanRequest): Promise<Plan> {
   return postJson<Plan>(baseUrl, '/api/plan', req, 90_000);
+}
+
+/** Timetable photo → structured courses (the only thing AI is trusted with). */
+export async function parseClassesRemote(
+  baseUrl: string,
+  scheduleImageBase64: string,
+  scheduleImageMime: string,
+): Promise<Course[]> {
+  const data = await postJson<{ courses?: Course[] }>(
+    baseUrl,
+    '/api/parse-classes',
+    { scheduleImageBase64, scheduleImageMime },
+    60_000,
+  );
+  return data.courses ?? [];
 }
 
 export function sendChat(

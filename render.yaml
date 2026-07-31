@@ -1,0 +1,16 @@
+# Render Blueprint — one-click deploy of the Pawse backend.
+# In Render: New + → Blueprint → pick this repo. It reads this file, then asks
+# you to fill OPENAI_API_KEY (it's never stored in the repo).
+services:
+  - type: web
+    name: pawse-server
+    runtime: node
+    rootDir: server
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false # set in the Render dashboard, not in Git

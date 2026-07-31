@@ -18,10 +18,10 @@ import {
 } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
-import { Brand, Colors, Fonts, MaxContentWidth, Radius, Shadow, Spacing } from '@/constants/theme';
+import { ACTIVE_SCHEME, Colors, Fonts, Glass, INK, MaxContentWidth, Radius, Shadow, Spacing } from '@/constants/theme';
 
-/** Dark-first: the brand lives in the dark palette. */
-export const C = Colors.dark;
+/** Minimal, Apple-like, black-and-white — following the system's light/dark. */
+export const C = Colors[ACTIVE_SCHEME];
 
 type TextVariant = 'display' | 'title' | 'subtitle' | 'body' | 'label' | 'caption';
 
@@ -79,7 +79,7 @@ export function Screen({
       {glow && (
         <LinearGradient
           pointerEvents="none"
-          colors={['rgba(245,160,184,0.14)', 'rgba(245,160,184,0.03)', 'rgba(0,0,0,0)']}
+          colors={[`rgba(${INK},0.03)`, `rgba(${INK},0)`, `rgba(${INK},0)`]}
           style={styles.glow}
         />
       )}
@@ -136,38 +136,17 @@ export function Button({
   const content = (
     <View style={styles.btnRow}>
       {loading ? (
-        <ActivityIndicator color={isPrimary ? Brand.bgDark : C.text} />
+        <ActivityIndicator color={C.text} />
       ) : (
         <>
           {left}
-          <Text variant="label" style={styles.btnLabel} color={isPrimary ? Brand.bgDark : isGhost ? C.tint : C.text}>
+          <Text variant="label" style={styles.btnLabel} color={C.text}>
             {title}
           </Text>
         </>
       )}
     </View>
   );
-
-  if (isPrimary) {
-    return (
-      <Pressable
-        accessibilityRole="button"
-        disabled={inactive}
-        style={({ pressed }) => [
-          styles.btnBase,
-          fullWidth && styles.stretch,
-          styles.primaryShadow,
-          inactive && styles.dim,
-          pressed && !inactive && styles.pressed,
-        ]}
-        {...rest}
-      >
-        <LinearGradient colors={['#ffdce6', '#f4b6c6']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.btnFill}>
-          {content}
-        </LinearGradient>
-      </Pressable>
-    );
-  }
 
   return (
     <Pressable
@@ -177,7 +156,8 @@ export function Button({
         styles.btnBase,
         styles.btnFill,
         fullWidth && styles.stretch,
-        isGhost ? styles.btnGhost : styles.btnSecondary,
+        isPrimary ? styles.btnPrimary : isGhost ? styles.btnGhost : styles.btnSecondary,
+        isPrimary && styles.primaryShadow,
         inactive && styles.dim,
         pressed && !inactive && styles.pressed,
       ]}
@@ -207,7 +187,7 @@ export function Chip({
         pressed && { opacity: 0.85 },
       ]}
     >
-      <Text variant="caption" color={selected ? Brand.bgDark : C.textSecondary} style={selected && styles.chipOnText}>
+      <Text variant="caption" color={selected ? C.text : C.textSecondary} style={selected && styles.chipOnText}>
         {label}
       </Text>
     </Pressable>
@@ -234,7 +214,7 @@ export function Pill({
         pressed && { opacity: 0.8 },
       ]}
     >
-      <Text variant="caption" color={selected ? Brand.bgDark : C.textSecondary}>
+      <Text variant="caption" color={selected ? C.onTint : C.textSecondary}>
         {label}
       </Text>
     </Pressable>
@@ -261,37 +241,41 @@ const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1, paddingBottom: Spacing.seven },
   centerV: { justifyContent: 'center' },
   card: {
-    backgroundColor: C.backgroundElement,
-    borderRadius: Radius.lg,
+    ...Glass,
+    borderRadius: Radius.xl,
     borderWidth: 1,
     borderColor: C.border,
     padding: Spacing.five,
     ...Shadow.card,
   },
   cardElevated: { backgroundColor: C.backgroundElevated },
-  btnBase: { borderRadius: Radius.md, minHeight: 52, justifyContent: 'center' },
+  btnBase: { borderRadius: Radius.lg, minHeight: 50, justifyContent: 'center' },
   btnFill: {
-    borderRadius: Radius.md,
-    paddingVertical: 15,
+    borderRadius: Radius.lg,
+    paddingVertical: 14,
     paddingHorizontal: Spacing.five,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stretch: { alignSelf: 'stretch' },
-  primaryShadow: { ...Shadow.pinkGlow },
-  btnSecondary: { backgroundColor: C.backgroundSelected },
+  primaryShadow: { ...Shadow.card },
+  // Frosted glass with a neutral grey tint (Apple "material") so the buttons
+  // read clearly on a white page instead of vanishing. Primary is a touch
+  // denser + carries a soft lift so it still reads as the main action.
+  btnPrimary: { ...Glass, backgroundColor: 'rgba(118, 118, 128, 0.24)', borderWidth: 1, borderColor: `rgba(${INK}, 0.16)` },
+  btnSecondary: { ...Glass, backgroundColor: 'rgba(118, 118, 128, 0.14)', borderWidth: 1, borderColor: C.border },
   btnGhost: { backgroundColor: 'transparent', minHeight: 44 },
-  dim: { opacity: 0.45 },
-  pressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },
+  dim: { opacity: 0.4 },
+  pressed: { opacity: 0.9, transform: [{ scale: 0.985 }] },
   btnRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.two },
-  btnLabel: { fontSize: 16, fontFamily: Fonts.bold },
+  btnLabel: { fontSize: 16, fontFamily: Fonts.semibold },
   chip: {
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.two + 1,
-    borderRadius: Radius.sm,
+    borderRadius: Radius.pill,
     borderWidth: 1,
   },
-  chipOn: { backgroundColor: Brand.pink, borderColor: Brand.pink },
+  chipOn: { backgroundColor: `rgba(${INK}, 0.08)`, borderColor: `rgba(${INK}, 0.30)` },
   chipOff: { backgroundColor: 'transparent', borderColor: C.border },
   chipOnText: { fontFamily: Fonts.bold },
   pill: {

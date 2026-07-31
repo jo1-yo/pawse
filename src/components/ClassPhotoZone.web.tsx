@@ -1,30 +1,34 @@
 /**
- * Web class-photo zone: drag a timetable image onto it, or click Upload.
+ * Web class-photo zone: drag a timetable image onto it, click Upload, or
+ * click Paste and hit ⌘V/Ctrl+V with a screenshot on the clipboard.
  * (Drag-and-drop is wired via DOM listeners on the underlying element, which
  * react-native-web exposes through the View ref.)
  */
 
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { C, Text } from '@/components/ui';
 import { Brand, Radius, Spacing } from '@/constants/theme';
+import { readScheduleImage } from '@/lib/classPhoto';
 import { usePlanStore } from '@/store/usePlanStore';
+
+const PASTE_KEYS =
+  typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform) ? '⌘V' : 'Ctrl+V';
 
 export function ClassPhotoZone() {
   const scheduleImageBase64 = usePlanStore((s) => s.scheduleImageBase64);
   const setScheduleImage = usePlanStore((s) => s.setScheduleImage);
+  const parsingClasses = usePlanStore((s) => s.parsingClasses);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [pasteArmed, setPasteArmed] = useState(false);
   const ref = useRef<View>(null);
 
-  useEffect(() => {
-    const node = ref.current as unknown as HTMLElement | null;
-    if (!node) return;
-
-    const readFile = (file: File) => {
+  const readFile = useCallback(
+    (file: Blob) => {
       const reader = new FileReader();
       reader.onload = () => {
         const dataUrl = String(reader.result);
@@ -32,9 +36,16 @@ export function ClassPhotoZone() {
         const mime = dataUrl.slice(5, dataUrl.indexOf(';'));
         setScheduleImage(base64, mime || 'image/jpeg');
         setPreviewUri(dataUrl);
+        void readScheduleImage();
       };
       reader.readAsDataURL(file);
-    };
+    },
+    [setScheduleImage],
+  );
+
+  useEffect(() => {
+    const node = ref.current as unknown as HTMLElement | null;
+    if (!node) return;
 
     const onOver = (e: Event) => {
       e.preventDefault();
@@ -56,7 +67,60 @@ export function ClassPhotoZone() {
       node.removeEventListener('dragleave', onLeave);
       node.removeEventListener('drop', onDrop);
     };
-  }, [setScheduleImage]);
+  }, [readFile]);
+
+  // While armed, the next ⌘V/Ctrl+V anywhere on the page attaches the image.
+  // Escape or 30s of silence disarms.
+  useEffect(() => {
+    if (!pasteArmed) return;
+    const onPaste = (e: ClipboardEvent) => {
+      const item = Array.from(e.clipboardData?.items ?? []).find((i) =>
+        i.type.startsWith('image/'),
+      );
+      const file = item?.getAsFile();
+      if (file) {
+        e.preventDefault();
+        readFile(file);
+        setPasteArmed(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPasteArmed(false);
+    };
+    document.addEventListener('paste', onPaste);
+    document.addEventListener('keydown', onKey);
+    const timeout = setTimeout(() => setPasteArmed(false), 30000);
+    return () => {
+      document.removeEventListener('paste', onPaste);
+      document.removeEventListener('keydown', onKey);
+      clearTimeout(timeout);
+    };
+  }, [pasteArmed, readFile]);
+
+  async function pasteFromClipboard() {
+    // Instant path: read the clipboard directly when the browser allows it.
+    // Racing a short timeout keeps a stuck permission prompt from eating the
+    // click; either failure falls back to listening for a real ⌘V.
+    try {
+      const read = navigator.clipboard?.read?.();
+      if (read) {
+        const items = await Promise.race([
+          read,
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('slow')), 1200)),
+        ]);
+        for (const item of items) {
+          const type = item.types.find((t) => t.startsWith('image/'));
+          if (type) {
+            readFile(await item.getType(type));
+            return;
+          }
+        }
+      }
+    } catch {
+      // Permission denied or unsupported: fall through to the armed path.
+    }
+    setPasteArmed(true);
+  }
 
   async function upload() {
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.6, base64: true });
@@ -64,6 +128,7 @@ export function ClassPhotoZone() {
     if (asset?.base64) {
       setScheduleImage(asset.base64, asset.mimeType ?? 'image/jpeg');
       setPreviewUri(asset.uri);
+      void readScheduleImage();
     }
   }
 
@@ -81,8 +146,8 @@ export function ClassPhotoZone() {
           <Text variant="label" color={C.text}>
             Timetable attached
           </Text>
-          <Text variant="caption" color={C.textMuted}>
-            Pawse will read your classes
+          <Text variant="caption" color={parsingClasses ? C.tint : C.textMuted}>
+            {parsingClasses ? 'Reading your classes…' : 'Classes it finds appear in your list'}
           </Text>
         </View>
         <Pressable onPress={() => { setScheduleImage(null, null); setPreviewUri(null); }} hitSlop={8}>
@@ -95,18 +160,30 @@ export function ClassPhotoZone() {
   }
 
   return (
-    <View ref={ref} style={[styles.zone, dragging && styles.zoneActive]}>
+    <View ref={ref} style={[styles.zone, (dragging || pasteArmed) && styles.zoneActive]}>
       <Text variant="label" color={C.text}>
         Upload a photo of your timetable
       </Text>
       <Text variant="caption" color={C.textMuted} center>
-        Drag one here or upload — Pawse reads it and keeps your classes fixed.
+        Drag one here, upload, or paste. Pawse reads it and keeps your classes fixed.
       </Text>
-      <Pressable onPress={upload} style={styles.zbtn}>
-        <Text variant="label" color={C.text}>
-          Upload
+      <View style={styles.row}>
+        <Pressable onPress={upload} style={styles.zbtn}>
+          <Text variant="label" color={C.text}>
+            Upload
+          </Text>
+        </Pressable>
+        <Pressable onPress={pasteFromClipboard} style={styles.zbtn}>
+          <Text variant="label" color={C.text}>
+            Paste
+          </Text>
+        </Pressable>
+      </View>
+      {pasteArmed && (
+        <Text variant="caption" color={Brand.pink} center>
+          Now press {PASTE_KEYS} to paste your screenshot.
         </Text>
-      </Pressable>
+      )}
     </View>
   );
 }
@@ -123,8 +200,8 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   zoneActive: { borderColor: Brand.pink, backgroundColor: 'rgba(245,160,184,0.06)' },
+  row: { flexDirection: 'row', gap: Spacing.five, marginTop: Spacing.two },
   zbtn: {
-    marginTop: Spacing.two,
     paddingHorizontal: Spacing.five,
     paddingVertical: Spacing.three,
     borderRadius: Radius.sm,

@@ -8,6 +8,7 @@
 
 import { callLlm, extractJson } from './fal.js';
 import { uploadImage } from './fal.js';
+import { extractCoursesOpenAI, hasOpenAI } from './openai.js';
 import {
   buildPlannerPrompt,
   buildRepairPrompt,
@@ -55,19 +56,46 @@ function minutes(start: string, end: string): number {
   return (eh ?? 0) * 60 + (em ?? 0) - ((sh ?? 0) * 60 + (sm ?? 0));
 }
 
-async function extractCourses(req: PlanRequest): Promise<Course[]> {
+export async function extractCourses(req: {
+  scheduleImageBase64?: string;
+  scheduleImageMime?: string;
+}): Promise<Course[]> {
   if (!req.scheduleImageBase64) return [];
+  const mime = req.scheduleImageMime ?? 'image/jpeg';
+
+  // Preferred: one OpenAI vision call with a strict output schema.
+  if (hasOpenAI()) {
+    try {
+      const extraction = await extractCoursesOpenAI(req.scheduleImageBase64, mime);
+      const parsed = CourseExtractionZ.safeParse(extraction);
+      if (parsed.success) return parsed.data.courses;
+      console.error('[vision/openai] unexpected shape:', JSON.stringify(extraction).slice(0, 400));
+    } catch (err) {
+      console.error('[vision/openai] failed, trying fal:', err);
+    }
+  }
+
+  let raw = '';
   try {
-    const url = await uploadImage(req.scheduleImageBase64, req.scheduleImageMime ?? 'image/jpeg');
-    const raw = await callLlm({
+    const url = await uploadImage(req.scheduleImageBase64, mime);
+    // Models behind any-llm/vision ignore JSON-format instructions, so the
+    // vision step only transcribes; the text model then emits the strict JSON.
+    const transcript = await callLlm({
       system: VISION_SYSTEM,
       prompt: VISION_PROMPT,
       imageUrls: [url],
       timeoutMs: 45_000,
     });
+    raw = await callLlm({
+      system: VISION_SYSTEM,
+      prompt: `Convert this timetable transcript into the JSON schema:\n\n${transcript}`,
+      timeoutMs: 30_000,
+    });
     const parsed = CourseExtractionZ.safeParse(extractJson(raw));
+    if (!parsed.success) console.error('[vision] unexpected shape:', raw.slice(0, 400));
     return parsed.success ? parsed.data.courses : [];
-  } catch {
+  } catch (err) {
+    console.error('[vision] OCR failed:', err, raw ? `raw: ${raw.slice(0, 400)}` : '(no output)');
     return []; // OCR is best-effort; the planner can still use typed text
   }
 }

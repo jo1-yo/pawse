@@ -7,16 +7,19 @@ import Svg, { Circle, Line } from 'react-native-svg';
 import { CatMascot } from '@/components/CatMascot';
 import { DateField } from '@/components/DateField';
 import { EventEditor } from '@/components/EventEditor';
+import { PlanningOverlay } from '@/components/PlanningOverlay';
 import { SchedulePane } from '@/components/SchedulePane';
 import { TaskComposer } from '@/components/TaskComposer';
 import { C, Card, Screen, Text } from '@/components/ui';
 import { Brand, Radius, Spacing } from '@/constants/theme';
-import { generatePlan } from '@/lib/api';
+import { readScheduleImage } from '@/lib/classPhoto';
 import { BRAND } from '@/lib/config';
+import { durationMinutes, isoDate } from '@/lib/datetime';
 import { buildLocalPlan } from '@/lib/localPlanner';
+import { parseClasses } from '@/lib/parseClasses';
 import { toast } from '@/lib/toast';
 import { usePlanStore } from '@/store/usePlanStore';
-import type { Plan, PlanEvent } from '@/types/plan';
+import type { PlanEvent } from '@/types/plan';
 
 const uid = () => 'm' + Math.random().toString(36).slice(2, 9);
 const WIDE = 820;
@@ -33,12 +36,20 @@ export default function PlanScreen() {
   const updatePlanEvent = usePlanStore((s) => s.updatePlanEvent);
   const removePlanEvent = usePlanStore((s) => s.removePlanEvent);
   const onboarded = usePlanStore((s) => s.onboarded);
+  const parsingClasses = usePlanStore((s) => s.parsingClasses);
   const planRange = usePlanStore((s) => s.planRange);
   const setPlanRange = usePlanStore((s) => s.setPlanRange);
 
   const [generating, setGenerating] = useState(false);
+  const [replanning, setReplanning] = useState(false);
   const [editing, setEditing] = useState<EditState>(null);
 
+  /**
+   * Placement is always the deterministic on-device engine (predictable,
+   * PRD v0.2). AI's only job is reading the timetable photo into class rows,
+   * which normally happened at attach time; an unread photo (server was down)
+   * gets one more chance here.
+   */
   async function generate() {
     const s = usePlanStore.getState();
     const validTasks = s.tasks.filter((t) => t.title.trim().length > 0);
@@ -49,43 +60,65 @@ export default function PlanScreen() {
     setGenerating(true);
     const now = new Date();
     try {
-      let next: Plan;
-      let usedAI = true;
-      try {
-        const classText = [
-          s.scheduleText.trim(),
-          ...s.classEntries.map((c) => `${c.name} — ${c.time}`),
-        ]
-          .filter(Boolean)
-          .join('\n');
-        next = await generatePlan(s.backendUrl, {
-          scheduleText: classText || undefined,
-          scheduleImageBase64: s.scheduleImageBase64 ?? undefined,
-          scheduleImageMime: s.scheduleImageMime ?? undefined,
-          tasks: validTasks,
-          preferences: s.preferences,
-          nowISO: now.toISOString(),
-          rangeStart: s.planRange.start,
-          rangeEnd: s.planRange.end,
-        });
-      } catch {
-        usedAI = false;
-        next = buildLocalPlan(validTasks, s.preferences, now, s.planRange);
-        next.warnings = [
-          ...next.warnings,
-          "Planned on your device. Add Pawse's server in Settings for smarter AI planning.",
-        ];
+      const warnings: string[] = [];
+      if (s.scheduleImageBase64 && !s.scheduleImageRead) {
+        const added = await readScheduleImage({ quiet: true });
+        if (added === 0 && !usePlanStore.getState().scheduleImageRead) {
+          warnings.push(
+            'Your timetable photo could not be read, so the plan only uses typed classes.',
+          );
+        }
       }
+      const fresh = usePlanStore.getState();
+      const courses = parseClasses(fresh.classEntries, fresh.scheduleText);
+      const next = buildLocalPlan(validTasks, courses, fresh.preferences, now, fresh.planRange);
+      next.warnings = [...next.warnings, ...warnings];
       setPlan(next);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      toast(usedAI ? 'Your plan is ready 🐱' : 'Plan ready — made on your device 🐱');
+      toast('Your plan is ready 🐱');
     } finally {
       setGenerating(false);
     }
   }
 
+  /** Rolling re-plan: keep done blocks put, re-fit everything that's left. */
+  function replan() {
+    const s = usePlanStore.getState();
+    if (!s.plan) return;
+    setReplanning(true);
+    try {
+      const now = new Date();
+      const keepEvents = s.plan.events.filter((e) => e.done);
+      const completedHoursByTask: Record<string, number> = {};
+      for (const e of keepEvents) {
+        if (e.type !== 'study' || !e.taskId) continue;
+        completedHoursByTask[e.taskId] =
+          (completedHoursByTask[e.taskId] ?? 0) + durationMinutes(e.start, e.end) / 60;
+      }
+      const validTasks = s.tasks.filter((t) => t.title.trim().length > 0);
+      // Prefer the *current* class list — the plan's snapshot goes stale when
+      // classes were added/removed after generating.
+      const parsed = parseClasses(s.classEntries, s.scheduleText);
+      const courses = parsed.length > 0 ? parsed : s.plan.courses;
+      const next = buildLocalPlan(validTasks, courses, s.preferences, now, s.planRange, {
+        completedHoursByTask,
+        busyEvents: keepEvents,
+      });
+      setPlan(next);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      toast("Re-planned what's left 🐱");
+    } finally {
+      setReplanning(false);
+    }
+  }
+
+  function toggleDone(ev: PlanEvent) {
+    updatePlanEvent(ev.id, { done: !ev.done });
+    void Haptics.selectionAsync();
+  }
+
   function openNewBlock(date?: string) {
-    const d = date ?? planRange.start;
+    const d = date ?? isoDate(new Date());
     setEditing({
       event: { id: uid(), title: 'Focus block', type: 'study', date: d, start: '18:00', end: '19:00' },
       isNew: true,
@@ -112,21 +145,30 @@ export default function PlanScreen() {
   );
   const scheduleBox = (
     <Card style={wide ? styles.col : undefined}>
-      <SchedulePane onEditEvent={(e) => setEditing({ event: e, isNew: false })} onAddEvent={openNewBlock} />
+      <SchedulePane
+        onEditEvent={(e) => setEditing({ event: e, isNew: false })}
+        onAddEvent={openNewBlock}
+        onToggleDone={toggleDone}
+        onReplan={replan}
+        replanning={replanning}
+      />
     </Card>
   );
 
   return (
     <Screen scroll glow center maxWidth={wide ? 1120 : undefined}>
+      {/* One header row: brand, the (quiet) planning window, settings. */}
       <View style={styles.header}>
-        <CatMascot size={44} />
-        <View style={{ flex: 1 }}>
-          <Text variant="subtitle" style={{ fontSize: 22 }}>
-            {BRAND.name}
+        <CatMascot size={40} />
+        <Text variant="subtitle" style={{ fontSize: 22, flex: 1 }}>
+          {BRAND.name}
+        </Text>
+        <View style={styles.window}>
+          <DateField value={planRange.start} onChange={(start) => setPlanRange({ start })} />
+          <Text variant="caption" color={C.textMuted}>
+            →
           </Text>
-          <Text variant="caption" color={Brand.pink}>
-            {BRAND.tagline}
-          </Text>
+          <DateField value={planRange.end} onChange={(end) => setPlanRange({ end })} />
         </View>
         <Pressable onPress={() => router.push('/settings')} hitSlop={10} style={styles.gear}>
           <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
@@ -136,19 +178,6 @@ export default function PlanScreen() {
             <Circle cx={15} cy={16} r={2.6} fill={Brand.bgDark} stroke={C.textSecondary} strokeWidth={1.8} />
           </Svg>
         </Pressable>
-      </View>
-
-      <View style={styles.windowBar}>
-        <Text variant="caption" color={C.textMuted}>
-          PLANNING WINDOW
-        </Text>
-        <View style={styles.windowDates}>
-          <DateField value={planRange.start} onChange={(start) => setPlanRange({ start })} />
-          <Text variant="label" color={C.textMuted}>
-            →
-          </Text>
-          <DateField value={planRange.end} onChange={(end) => setPlanRange({ end })} />
-        </View>
       </View>
 
       {wide ? (
@@ -171,6 +200,8 @@ export default function PlanScreen() {
         onDelete={deleteEvent}
         onClose={() => setEditing(null)}
       />
+
+      <PlanningOverlay visible={parsingClasses} />
     </Screen>
   );
 }
@@ -179,6 +210,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: Spacing.three,
     marginVertical: Spacing.five,
   },
@@ -188,25 +220,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: C.backgroundElement,
-    borderWidth: 1,
-    borderColor: C.border,
   },
-  windowBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: Spacing.three,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
-    marginBottom: Spacing.five,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: C.border,
-    backgroundColor: C.backgroundElement,
-  },
-  windowDates: { flexDirection: 'row', alignItems: 'center', gap: Spacing.four },
+  window: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginEnd: Spacing.two },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.five },
   stack: { gap: Spacing.five },
   col: { flex: 1 },

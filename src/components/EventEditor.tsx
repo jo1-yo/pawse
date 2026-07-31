@@ -69,6 +69,16 @@ export function EventEditor({
             ))}
           </View>
 
+          {(draft.type === 'study' || draft.type === 'break') && (
+            <View style={styles.doneRow}>
+              <Chip
+                label={draft.done ? 'Done ✓' : 'Mark as done'}
+                selected={!!draft.done}
+                onPress={() => patch({ done: !draft.done })}
+              />
+            </View>
+          )}
+
           <NudgeRow
             label="Day"
             value={formatDateHeading(draft.date)}
@@ -165,6 +175,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.four,
   },
   typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginBottom: Spacing.four },
+  doneRow: { flexDirection: 'row', marginBottom: Spacing.four },
   nudgeRow: {
     flexDirection: 'row',
     alignItems: 'center',

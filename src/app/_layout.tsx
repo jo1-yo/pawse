@@ -5,27 +5,28 @@ import {
   DMSans_700Bold,
   useFonts,
 } from '@expo-google-fonts/dm-sans';
-import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ToastHost } from '@/components/Toast';
-import { Brand } from '@/constants/theme';
+import { ACTIVE_SCHEME, Colors } from '@/constants/theme';
 
 SplashScreen.preventAutoHideAsync();
 
+const palette = Colors[ACTIVE_SCHEME];
 const navTheme = {
-  ...DarkTheme,
+  ...(ACTIVE_SCHEME === 'dark' ? DarkTheme : DefaultTheme),
   colors: {
-    ...DarkTheme.colors,
-    background: Brand.bgDark,
-    card: Brand.bgDark,
-    text: '#ffffff',
-    border: Brand.hairline,
-    primary: Brand.pink,
-    notification: Brand.pink,
+    ...(ACTIVE_SCHEME === 'dark' ? DarkTheme : DefaultTheme).colors,
+    background: palette.background,
+    card: palette.backgroundElement,
+    text: palette.text,
+    border: palette.border,
+    primary: palette.tint,
+    notification: palette.tint,
   },
 };
 
@@ -46,9 +47,9 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider value={navTheme}>
-        <StatusBar style="light" />
+        <StatusBar style={ACTIVE_SCHEME === 'dark' ? 'light' : 'dark'} />
         <Stack
-          screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Brand.bgDark } }}
+          screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.background } }}
         >
           <Stack.Screen name="index" />
           <Stack.Screen name="settings" />
