@@ -39,6 +39,35 @@ function clientKey(headers: Headers): string {
 // ---- routes -----------------------------------------------------------------
 app.get('/health', (c) => c.json({ ok: true, service: 'pawse-server' }));
 
+// Public privacy policy — the URL the App Store & Chrome Web Store require.
+app.get('/privacy', (c) =>
+  c.html(`<!doctype html><html lang="en"><head><meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pawse — Privacy Policy</title>
+<style>body{max-width:720px;margin:40px auto;padding:0 20px;font:16px/1.6 -apple-system,system-ui,sans-serif;color:#1d1d1f}h1{font-size:28px}h2{font-size:19px;margin-top:32px}small{color:#666}a{color:#1d1d1f}</style>
+</head><body>
+<h1>Pawse — Privacy Policy</h1>
+<small>Last updated: 2026-07-30</small>
+<p>Pawse is a study planner (iOS app, website, and Chrome extension) that turns your classes and deadlines into a weekly schedule. This policy explains what we do — and don't — do with your information.</p>
+<h2>What stays on your device</h2>
+<p>Your tasks, classes, generated schedule, and settings are stored <strong>locally on your own device</strong> (browser storage / on-device app storage). We do not have accounts, and this information is never sent to us or anyone else.</p>
+<h2>Timetable photos</h2>
+<p>If you choose to add classes by <strong>photo</strong>, that single image is sent to Pawse's own server, which passes it to an AI vision provider (OpenAI) <strong>only</strong> to read the class names and times printed on it. The image is processed in memory and is <strong>not stored, logged, or shared</strong>, and is never used for advertising or sold to anyone. If you type or paste your classes instead, no image is sent.</p>
+<h2>What we do NOT collect</h2>
+<p>No names, emails, passwords, payment details, location, browsing history, or analytics profiles. Pawse does not track you across sites.</p>
+<h2>Permissions (Chrome extension)</h2>
+<ul>
+<li><strong>Side panel</strong> — to show Pawse in the browser's side panel.</li>
+<li><strong>Clipboard read</strong> — only when you press "Paste", to grab a timetable screenshot you copied.</li>
+<li><strong>Access to the Pawse server</strong> — to send a timetable photo for reading, as described above.</li>
+</ul>
+<h2>Data selling &amp; transfer</h2>
+<p>We do not sell or transfer your data to third parties, do not use it for any purpose unrelated to building your schedule, and do not use it to determine creditworthiness or for lending.</p>
+<h2>Contact</h2>
+<p>Questions? Email <a href="mailto:janezhang555l@gmail.com">janezhang555l@gmail.com</a>.</p>
+</body></html>`),
+);
+
 app.post('/api/plan', async (c) => {
   if (rateLimited(clientKey(c.req.raw.headers))) {
     return c.json({ error: 'Too many requests. Give Pawse a minute. 🐱' }, 429);
