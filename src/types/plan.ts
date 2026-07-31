@@ -49,6 +49,8 @@ export interface PlanEvent {
   end: string;
   /** Which task this study block advances (omitted for class/break/etc). */
   taskId?: string;
+  /** Student marked this block finished — drives the rolling re-plan. */
+  done?: boolean;
   notes?: string;
 }
 
@@ -64,8 +66,10 @@ export interface Preferences {
   studyBlockMinutes: number;
   /** Break length between study blocks, minutes. */
   breakMinutes: number;
-  /** Soft cap on total study minutes per day. */
+  /** Soft cap on total study minutes per day (weekdays). */
   maxStudyMinutesPerDay: number;
+  /** Hours the student is willing to work on each *weekend* day (Sat/Sun). */
+  weekendStudyHours: number;
 }
 
 export const DEFAULT_PREFERENCES: Omit<Preferences, 'timezone'> = {
@@ -74,6 +78,7 @@ export const DEFAULT_PREFERENCES: Omit<Preferences, 'timezone'> = {
   studyBlockMinutes: 50,
   breakMinutes: 10,
   maxStudyMinutesPerDay: 360,
+  weekendStudyHours: 3,
 };
 
 /** The full plan returned by the backend and rendered in the app. */
@@ -113,6 +118,44 @@ export interface PlanRange {
   start: string; // YYYY-MM-DD
   end: string; // YYYY-MM-DD
 }
+
+/**
+ * "Can you make it?" — the feasibility check. Computed on-device from the
+ * produced plan (works for both AI and local plans), so the verdict always
+ * matches what's actually on the calendar.
+ */
+export type FeasibilityVerdict = 'on-track' | 'tight' | 'wont-fit';
+
+/** Per-task feasibility: how much of the estimate actually fits before its due. */
+export interface TaskFeasibility {
+  taskId: string;
+  title: string;
+  deadline: string;
+  /** Estimated effort still owed (estimate minus already-done blocks). */
+  requiredHours: number;
+  /** Study hours the plan actually places before the deadline. */
+  scheduledHours: number;
+  /** Hours that couldn't be fit before the deadline (0 = fully fits). */
+  deficitHours: number;
+  /** True when the work is placed but with little/no buffer before the due. */
+  tight: boolean;
+  /** True when the due date already passed — nothing can be scheduled for it. */
+  overdue: boolean;
+}
+
+/** The overall feasibility verdict shown in the headline banner. */
+export interface Feasibility {
+  verdict: FeasibilityVerdict;
+  /** Short headline, e.g. "You're on track". */
+  headline: string;
+  /** One concrete, honest next step (the "fix"). */
+  detail: string;
+  /** Per-task breakdown, worst first. */
+  tasks: TaskFeasibility[];
+}
+
+/** Calendar the student connects Pawse to for one-tap export. */
+export type CalendarProvider = 'apple' | 'google';
 
 /** One manually-entered class: a name + a free-text day/time. */
 export interface ClassEntry {

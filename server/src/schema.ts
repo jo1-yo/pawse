@@ -64,6 +64,12 @@ export const CourseExtractionZ = z.object({
   courses: z.array(CourseZ),
 });
 
+/** Request body for POST /api/parse-classes (photo → structured courses only). */
+export const ParseClassesRequestZ = z.object({
+  scheduleImageBase64: z.string().min(1, 'Include a schedule image.'),
+  scheduleImageMime: z.string().optional(),
+});
+
 export const ChatRequestZ = z.object({
   messages: z
     .array(z.object({ role: z.enum(['user', 'assistant']), content: z.string() }))

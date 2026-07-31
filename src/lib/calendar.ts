@@ -25,6 +25,16 @@ export class CalendarPermissionError extends Error {
   }
 }
 
+/**
+ * Ask for EventKit access up front (the onboarding "connect" moment), so the
+ * first one-tap export doesn't stall on a permission dialog. Native only.
+ */
+export async function requestAppleCalendarAccess(): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
+  const permission = await Calendar.requestCalendarPermissions();
+  return permission.granted;
+}
+
 async function getOrCreatePawseCalendar(): Promise<Calendar.ExpoCalendar> {
   const calendars = await Calendar.getCalendars(Calendar.EntityTypes.EVENT);
   const existing = calendars.find(

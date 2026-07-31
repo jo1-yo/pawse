@@ -6,8 +6,8 @@
     "orientation": "portrait",
     "icon": "./assets/images/pawse-icon.png",
     "scheme": "pawse",
-    "userInterfaceStyle": "dark",
-    "backgroundColor": "#0a0a0f",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#ffffff",
     "ios": {
       "bundleIdentifier": "film.martini.pawse",
       "buildNumber": "1",
@@ -65,6 +65,14 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "backendUrl": "http://localhost:8787",
+      "google": {
+        "webClientId": "",
+        "iosClientId": "",
+        "androidClientId": ""
+      }
     }
   }
 }

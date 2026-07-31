@@ -1,11 +1,15 @@
+// Must stay the FIRST import: static imports hoist above module code, so the
+// .env load has to ride a side-effect module to run before the others.
+import './env.js';
+
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
 import { makeChatReply } from './chat.js';
 import { forwardFeedback } from './feedback.js';
-import { makePlan } from './plan.js';
-import { ChatRequestZ, FeedbackRequestZ, PlanRequestZ } from './schema.js';
+import { extractCourses, makePlan } from './plan.js';
+import { ChatRequestZ, FeedbackRequestZ, ParseClassesRequestZ, PlanRequestZ } from './schema.js';
 
 const app = new Hono();
 
@@ -55,6 +59,29 @@ app.post('/api/plan', async (c) => {
   } catch (err) {
     console.error('[plan] error:', err);
     return c.json({ error: (err as Error).message || 'Failed to build your schedule.' }, 502);
+  }
+});
+
+app.post('/api/parse-classes', async (c) => {
+  if (rateLimited(clientKey(c.req.raw.headers))) {
+    return c.json({ error: 'Too many requests. Give Pawse a minute. 🐱' }, 429);
+  }
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'Invalid JSON body.' }, 400);
+  }
+  const parsed = ParseClassesRequestZ.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.issues[0]?.message ?? 'Invalid request.' }, 400);
+  }
+  try {
+    const courses = await extractCourses(parsed.data);
+    return c.json({ courses });
+  } catch (err) {
+    console.error('[parse-classes] error:', err);
+    return c.json({ error: 'Could not read the schedule photo right now.' }, 502);
   }
 });
 

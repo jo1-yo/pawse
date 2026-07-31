@@ -1,20 +1,22 @@
 import type { Course, PlanRequest } from './schema.js';
 
 /** Vision OCR: read a timetable photo into structured courses. */
-export const VISION_SYSTEM = `You read a photo of a college student's class timetable and extract the recurring classes.
+export const VISION_SYSTEM = `You read a photo of a college student's class schedule (a timetable grid, or a registrar/portal course list) and extract every scheduled class meeting.
 
 Return ONLY a JSON object, no markdown, no prose:
 {"courses":[{"title":"CS 101","days":[1,3],"start":"10:00","end":"11:15","location":"Olin 203"}]}
 
 Rules:
-- days: array of weekday numbers, 0=Sunday … 6=Saturday. "MWF" -> [1,3,5]. "TTh" -> [2,4].
-- start/end: 24-hour "HH:mm" local time.
-- location optional; omit if not shown.
-- Only include real, recurring class meetings. Ignore decorations, legends, and empty cells.
+- Extract EVERY row that has meeting days and a time; count the rows and do not stop early. In registrar tables the DAYS/TIME columns sit far to the right of the title. Match each days/time to the title on the SAME row; never borrow a neighboring row's time.
+- Registrar day letters: M=Mon, T=Tue, W=Wed, R=Thu (also "Th"), F=Fri, S=Sat, U=Sun. "TR" -> [2,4]. "MW" -> [1,3]. "MTWRF" -> [1,2,3,4,5].
+- days: array of weekday numbers, 0=Sunday … 6=Saturday.
+- start/end: 24-hour "HH:mm". Compact times like "0130PM-0245PM" mean 13:30-14:45.
+- A course meeting at several different times (extra rows under the same course, often with an empty title cell) = one JSON entry per meeting, repeating the course title.
+- Skip rows with no meeting days/time (independent study, async online). Grade or credit columns ("SU", "1.00") are not times.
+- location: the room column if shown; omit if not.
 - If you cannot read any classes, return {"courses":[]}.`;
 
-export const VISION_PROMPT =
-  'Extract every recurring class from this timetable as JSON per the schema.';
+export const VISION_PROMPT = `Transcribe every scheduled class you can read in this schedule photo, row by row, without skipping any. For each meeting list: the exact course name, which weekdays it meets (registrar letters: M/T/W/R/F where R=Thursday), its start and end times, and the room if shown. A course can have several meeting rows; list each one. Rows with no days/time (independent study) can be noted and skipped. Plain text is fine. If nothing is readable, say "no classes".`;
 
 /** The planner: builds the full schedule. */
 export const PLANNER_SYSTEM = `You are Pawse, a calm, expert academic planner. You turn a student's fixed classes plus their to-do list into a realistic, balanced weekly schedule that finishes everything before each deadline.

@@ -9,9 +9,14 @@
 
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import { Platform } from 'react-native';
 
 import type { Plan } from '@/types/plan';
 import { eventDates, toUtcStamp } from './datetime';
+
+/** Google Calendar's "Import & export" settings page (accepts .ics files). */
+export const GOOGLE_CALENDAR_IMPORT_URL =
+  'https://calendar.google.com/calendar/u/0/r/settings/export';
 
 /** Escape a TEXT property value per RFC 5545 §3.3.11. */
 function escapeText(value: string): string {
@@ -64,8 +69,29 @@ export function buildIcs(plan: Plan): string {
   return lines.join('\r\n');
 }
 
-/** Write the plan to a .ics file and open the system share sheet. */
+/** Browser path: download the .ics directly (no share sheet on web). */
+function downloadIcsWeb(plan: Plan): void {
+  const blob = new Blob([buildIcs(plan)], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'pawse-schedule.ics';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+/**
+ * Export the plan as .ics: system share sheet on device, a plain file
+ * download on web (double-clicking it lands in Apple Calendar / Outlook;
+ * Google Calendar imports it from its settings page).
+ */
 export async function exportPlanAsIcs(plan: Plan): Promise<boolean> {
+  if (Platform.OS === 'web') {
+    downloadIcsWeb(plan);
+    return true;
+  }
   const ics = buildIcs(plan);
   const file = new File(Paths.cache, 'pawse-schedule.ics');
   try {
