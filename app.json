@@ -67,7 +67,7 @@
       "reactCompiler": true
     },
     "extra": {
-      "backendUrl": "http://localhost:8787",
+      "backendUrl": "https://pawse-server.onrender.com",
       "google": {
         "webClientId": "",
         "iosClientId": "",
