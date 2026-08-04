@@ -5,11 +5,15 @@ import { C } from '@/components/ui';
  * month/day or open the browser's native date picker, instead of tapping
  * –/+ one day at a time. value/onChange use "YYYY-MM-DD" (exactly what the
  * input reads and emits). Native uses the OS picker in DateField.tsx.
+ *
+ * `lang` is pinned to en-US so the browser's own locale can't render the field
+ * (or its picker) in another language next to Pawse's English copy.
  */
 export function DateField({ value, onChange }: { value: string; onChange: (date: string) => void }) {
   return (
     <input
       type="date"
+      lang="en-US"
       value={value}
       onChange={(e) => e.target.value && onChange(e.target.value)}
       style={webFieldStyle}

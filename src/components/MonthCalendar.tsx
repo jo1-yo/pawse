@@ -17,6 +17,24 @@ import type { PlanEvent } from '@/types/plan';
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
+/** Date circle + the cell's vertical padding — the space no bar can use. */
+const CELL_CHROME = 30;
+/** One event bar plus the gap under it. */
+const BAR_H = 19;
+
+/**
+ * Cell height, derived from how wide a cell actually is. A fixed height leaves
+ * phone-width cells (~40pt across) looking stretched, so track the width and
+ * stay near Apple's slightly-taller-than-wide month cell, clamped so a phone
+ * stays legible and a wide window doesn't run away.
+ */
+function cellMetrics(gridWidth: number): { height: number; maxBars: number } {
+  if (gridWidth <= 0) return { height: 64, maxBars: 2 };
+  const height = Math.round(Math.min(88, Math.max(52, (gridWidth / 7) * 1.15)));
+  const maxBars = Math.max(1, Math.min(3, Math.floor((height - CELL_CHROME) / BAR_H)));
+  return { height, maxBars };
+}
+
 export function MonthCalendar({
   events,
   onDayPress,
@@ -28,6 +46,8 @@ export function MonthCalendar({
 }) {
   const today = isoDate(new Date());
   const [anchor, setAnchor] = useState(() => dayjs(today).startOf('month'));
+  const [gridWidth, setGridWidth] = useState(0);
+  const { height: cellHeight, maxBars } = cellMetrics(gridWidth);
 
   const monthIndex = anchor.month();
   const isCurrentMonth = anchor.isSame(dayjs(today), 'month');
@@ -93,7 +113,7 @@ export function MonthCalendar({
         ))}
       </View>
 
-      <View style={styles.grid}>
+      <View style={styles.grid} onLayout={(e) => setGridWidth(e.nativeEvent.layout.width)}>
         {weeks.map((week, wi) => (
           <View key={wi} style={styles.week}>
             {week.map((day) => {
@@ -102,7 +122,11 @@ export function MonthCalendar({
               const isToday = date === today;
               const evs = byDate.get(date) ?? [];
               return (
-                <Pressable key={date} style={styles.cell} onPress={() => onDayPress(date)}>
+                <Pressable
+                  key={date}
+                  style={[styles.cell, { height: cellHeight }]}
+                  onPress={() => onDayPress(date)}
+                >
                   <View style={[styles.dateWrap, isToday && styles.todayWrap]}>
                     <Text
                       variant="caption"
@@ -112,7 +136,7 @@ export function MonthCalendar({
                       {day.date()}
                     </Text>
                   </View>
-                  {evs.slice(0, 3).map((ev) => (
+                  {evs.slice(0, maxBars).map((ev) => (
                     <Pressable
                       key={ev.id}
                       onPress={() => onEventPress(ev)}
@@ -128,9 +152,9 @@ export function MonthCalendar({
                       </Text>
                     </Pressable>
                   ))}
-                  {evs.length > 3 && (
+                  {evs.length > maxBars && (
                     <Text variant="caption" color={C.textMuted} style={styles.more}>
-                      +{evs.length - 3}
+                      +{evs.length - maxBars}
                     </Text>
                   )}
                 </Pressable>
@@ -172,12 +196,12 @@ const styles = StyleSheet.create({
   week: { flexDirection: 'row' },
   cell: {
     flex: 1,
-    minHeight: 92,
     borderRightWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: C.border,
     padding: 4,
     gap: 2,
+    overflow: 'hidden',
   },
   dateWrap: { alignSelf: 'flex-start', minWidth: 22, height: 22, alignItems: 'center', justifyContent: 'center' },
   todayWrap: { backgroundColor: Brand.pink, borderRadius: Radius.pill },

@@ -74,7 +74,7 @@ export function RhythmSheet({
 
           <View style={styles.fieldRow}>
             <Text variant="label" color={C.textSecondary}>
-              I wake up
+              I wake up at
             </Text>
             <TimeField value={wake} onChange={setWake} />
           </View>

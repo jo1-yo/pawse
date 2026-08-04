@@ -74,6 +74,7 @@ export function TaskComposer({ onGenerate, generating }: { onGenerate: () => voi
 
         <DurationLabel />
         <View style={styles.chipRow}>
+          <HoursField value={estHours} onChange={setEstHours} />
           {DURATIONS.map((h) => (
             <Chip
               key={h}
@@ -211,6 +212,10 @@ function TaskRow({
         <View style={styles.expand}>
           <DurationLabel />
           <View style={styles.chipRow}>
+            <HoursField
+              value={task.estimatedHours}
+              onChange={(hours) => onChange({ estimatedHours: hours })}
+            />
             {DURATIONS.map((h) => (
               <Chip key={h} label={durLabel(h)} selected={task.estimatedHours === h} onPress={() => onChange({ estimatedHours: h })} />
             ))}
@@ -239,7 +244,7 @@ function TaskRow({
   );
 }
 
-/** Label + hint for the duration chips: it's the *effort* the task needs. */
+/** Label + hint for the duration field: it's the *effort* the task needs. */
 function DurationLabel() {
   return (
     <View>
@@ -247,7 +252,57 @@ function DurationLabel() {
         How much time will this take?
       </Text>
       <Text variant="caption" color={C.textMuted} style={styles.hint}>
-        Time to study for the exam or finish the assignment.
+        Time to study for the exam or finish the assignment. Type any number of hours — write 30
+        minutes as 0.5.
+      </Text>
+    </View>
+  );
+}
+
+/**
+ * Free-form effort entry, in hours. The chips beside it only cover the common
+ * lengths, so anything else (2.5h, 7h) has to be typeable. Edits are held as
+ * text while typing — "0." and "" are legal mid-keystroke — and only parsed on
+ * blur/submit, falling back to the last good value if what's left isn't a number.
+ */
+function HoursField({ value, onChange }: { value: number; onChange: (hours: number) => void }) {
+  const [text, setText] = useState(() => String(value));
+
+  // Follow the value when a chip changes it from outside, without an effect:
+  // adjusting during render lets React re-run this component before it paints.
+  const [lastValue, setLastValue] = useState(value);
+  if (value !== lastValue) {
+    setLastValue(value);
+    setText(String(value));
+  }
+
+  function commit() {
+    const parsed = parseFloat(text.replace(',', '.'));
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setText(String(value));
+      return;
+    }
+    const hours = Math.round(Math.min(24, parsed) * 100) / 100;
+    setText(String(hours));
+    onChange(hours);
+  }
+
+  return (
+    <View style={styles.hoursField}>
+      <TextInput
+        value={text}
+        onChangeText={setText}
+        onBlur={commit}
+        onSubmitEditing={commit}
+        keyboardType="decimal-pad"
+        inputMode="decimal"
+        returnKeyType="done"
+        selectTextOnFocus
+        accessibilityLabel="Hours this will take"
+        style={styles.hoursInput}
+      />
+      <Text variant="caption" color={C.textSecondary}>
+        h
       </Text>
     </View>
   );
@@ -286,7 +341,28 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.three + 2 },
   remove: { padding: 2 },
   expand: { gap: Spacing.three, paddingBottom: Spacing.three },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two },
+  hoursField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.background,
+    height: 36, // matches the chips beside it
+  },
+  hoursInput: {
+    // Fixed, not min: a bare TextInput stretches to fill the row on web.
+    width: 44,
+    flexGrow: 0,
+    paddingVertical: 0,
+    color: C.text,
+    fontFamily: 'DMSans_700Bold',
+    fontSize: 13,
+    textAlign: 'center',
+  },
   fieldRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 40 },
   classHeader: {
     flexDirection: 'row',

@@ -3,10 +3,12 @@
  * in `constants/theme.ts`. Everything here uses DM Sans.
  */
 
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   type PressableProps,
   ScrollView,
@@ -127,11 +129,19 @@ export function Button({
   disabled,
   fullWidth = true,
   left,
+  onPress,
   ...rest
 }: ButtonProps) {
   const isPrimary = variant === 'primary';
   const isGhost = variant === 'ghost';
   const inactive = disabled || loading;
+
+  // A tap on frosted glass is easy to miss, so the press is confirmed on two
+  // channels: the pressed style below, and a haptic tick where one exists.
+  const handlePress: PressableProps['onPress'] = (e) => {
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress?.(e);
+  };
 
   const content = (
     <View style={styles.btnRow}>
@@ -152,6 +162,7 @@ export function Button({
     <Pressable
       accessibilityRole="button"
       disabled={inactive}
+      onPress={handlePress}
       style={({ pressed }) => [
         styles.btnBase,
         styles.btnFill,
@@ -160,6 +171,7 @@ export function Button({
         isPrimary && styles.primaryShadow,
         inactive && styles.dim,
         pressed && !inactive && styles.pressed,
+        pressed && !inactive && !isGhost && styles.pressedFill,
       ]}
       {...rest}
     >
@@ -184,7 +196,7 @@ export function Chip({
       style={({ pressed }) => [
         styles.chip,
         selected ? styles.chipOn : styles.chipOff,
-        pressed && { opacity: 0.85 },
+        pressed && styles.chipPressed,
       ]}
     >
       <Text variant="caption" color={selected ? C.text : C.textSecondary} style={selected && styles.chipOnText}>
@@ -266,7 +278,9 @@ const styles = StyleSheet.create({
   btnSecondary: { ...Glass, backgroundColor: 'rgba(118, 118, 128, 0.14)', borderWidth: 1, borderColor: C.border },
   btnGhost: { backgroundColor: 'transparent', minHeight: 44 },
   dim: { opacity: 0.4 },
-  pressed: { opacity: 0.9, transform: [{ scale: 0.985 }] },
+  pressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
+  // The fill has to darken too — scale alone is invisible on a full-width button.
+  pressedFill: { backgroundColor: 'rgba(118, 118, 128, 0.44)', borderColor: `rgba(${INK}, 0.30)` },
   btnRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.two },
   btnLabel: { fontSize: 16, fontFamily: Fonts.semibold },
   chip: {
@@ -275,6 +289,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
     borderWidth: 1,
   },
+  chipPressed: { backgroundColor: `rgba(${INK}, 0.14)`, transform: [{ scale: 0.96 }] },
   chipOn: { backgroundColor: `rgba(${INK}, 0.08)`, borderColor: `rgba(${INK}, 0.30)` },
   chipOff: { backgroundColor: 'transparent', borderColor: C.border },
   chipOnText: { fontFamily: Fonts.bold },

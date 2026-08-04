@@ -2,7 +2,7 @@ import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/d
 import { Platform, Pressable } from 'react-native';
 
 import { C, Text } from '@/components/ui';
-import { Brand } from '@/constants/theme';
+import { ACTIVE_SCHEME, Brand } from '@/constants/theme';
 import { formatDay, isoDate, localDate } from '@/lib/datetime';
 
 /** Pick a calendar date; value/onChange use "YYYY-MM-DD". */
@@ -15,7 +15,9 @@ export function DateField({ value, onChange }: { value: string; onChange: (date:
         value={d}
         mode="date"
         display="compact"
-        themeVariant="dark"
+        // English-only copy — see the note in TimeField.tsx.
+        locale="en_US"
+        themeVariant={ACTIVE_SCHEME}
         accentColor={Brand.pink}
         onChange={(_e, sel) => sel && onChange(isoDate(sel))}
       />

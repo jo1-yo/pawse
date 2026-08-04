@@ -2,7 +2,7 @@ import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/d
 import { Platform, Pressable } from 'react-native';
 
 import { C, Text } from '@/components/ui';
-import { Brand } from '@/constants/theme';
+import { ACTIVE_SCHEME, Brand } from '@/constants/theme';
 import { formatTime } from '@/lib/datetime';
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -25,7 +25,10 @@ export function TimeField({
         value={date}
         mode="time"
         display="compact"
-        themeVariant="dark"
+        // Pawse's copy is English-only; left to the device locale the picker
+        // renders 上午/下午 beside English labels.
+        locale="en_US"
+        themeVariant={ACTIVE_SCHEME}
         accentColor={Brand.pink}
         onChange={(_e, d) => apply(d)}
       />
@@ -34,7 +37,14 @@ export function TimeField({
 
   return (
     <Pressable
-      onPress={() => DateTimePickerAndroid.open({ value: date, mode: 'time', onChange: (_e, d) => apply(d) })}
+      onPress={() =>
+        DateTimePickerAndroid.open({
+          value: date,
+          mode: 'time',
+          is24Hour: false,
+          onChange: (_e, d) => apply(d),
+        })
+      }
     >
       <Text variant="label" color={C.tint}>
         {formatTime(value)}
