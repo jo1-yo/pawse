@@ -17,6 +17,7 @@ import { Button, C, Text } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 import { addPlanToAppleCalendar, CalendarPermissionError } from '@/lib/calendar';
+import { confirmDestructive } from '@/lib/confirm';
 import { analyzeFeasibility } from '@/lib/feasibility';
 import { addPlanToGoogleCalendar, GoogleAuthError } from '@/lib/googleCalendar';
 import { exportPlanAsIcs, GOOGLE_CALENDAR_IMPORT_URL } from '@/lib/ics';
@@ -41,6 +42,7 @@ export function SchedulePane({
   const plan = usePlanStore((s) => s.plan);
   const tasks = usePlanStore((s) => s.tasks);
   const setPlan = usePlanStore((s) => s.setPlan);
+  const clearAll = usePlanStore((s) => s.clearAll);
   const provider = usePlanStore((s) => s.calendarProvider);
   const setCalendarProvider = usePlanStore((s) => s.setCalendarProvider);
   const google = useGoogleCalendar();
@@ -60,7 +62,17 @@ export function SchedulePane({
     [tasks, events, hasEvents],
   );
 
-  const hasDone = useMemo(() => events.some((e) => e.done), [events]);
+  function confirmStartOver() {
+    confirmDestructive({
+      title: 'Start over?',
+      message: 'This clears your to-dos, classes, and schedule. Your rhythm settings stay.',
+      confirmLabel: 'Clear',
+      onConfirm: () => {
+        clearAll();
+        toast('Cleared — add a to-do to plan a fresh week 🐱');
+      },
+    });
+  }
 
   /**
    * One-tap export to the chosen calendar. Apple on device writes straight
@@ -166,17 +178,17 @@ export function SchedulePane({
 
       {hasEvents && (
         <View style={styles.actions}>
-          {hasDone && (
-            <View style={styles.action}>
-              <Button
-                title="Re-plan"
-                variant="secondary"
-                onPress={onReplan}
-                loading={replanning}
-                disabled={replanning}
-              />
-            </View>
-          )}
+          {/* Always offer the rebuild: to-dos and classes change far more often
+              than blocks get checked off, and both leave the plan stale. */}
+          <View style={styles.action}>
+            <Button
+              title="Re-plan"
+              variant="secondary"
+              onPress={onReplan}
+              loading={replanning}
+              disabled={replanning}
+            />
+          </View>
           {/* One-tap export — the calendar connected at onboarding leads;
               picking the other one switches the default. */}
           <View style={[styles.action, styles.actionWide]}>
@@ -199,6 +211,16 @@ export function SchedulePane({
           </View>
         </View>
       )}
+
+      {/* Quiet escape hatch, deliberately not a filled button: one tap (plus a
+          confirm) back to an empty week, without a trip into Settings. */}
+      {(hasEvents || tasks.length > 0) && (
+        <Pressable onPress={confirmStartOver} hitSlop={8} style={styles.startOver}>
+          <Text variant="label" color={C.textMuted}>
+            Start over
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -215,6 +237,7 @@ const styles = StyleSheet.create({
     backgroundColor: C.backgroundSelected,
   },
   sample: { alignItems: 'center', paddingVertical: Spacing.two },
+  startOver: { alignItems: 'center', paddingVertical: Spacing.two },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginTop: Spacing.two },
   action: { flexGrow: 1, flexBasis: 120 },
   actionWide: { flexBasis: 200 },

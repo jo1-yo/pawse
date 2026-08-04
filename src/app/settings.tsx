@@ -1,12 +1,13 @@
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { TimeField } from '@/components/TimeField';
 import { Button, C, Card, Screen, SectionLabel, Text } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { sendFeedback } from '@/lib/api';
+import { confirmDestructive } from '@/lib/confirm';
 import { toast } from '@/lib/toast';
 import { usePlanStore } from '@/store/usePlanStore';
 
@@ -24,10 +25,15 @@ export default function SettingsScreen() {
   const [sending, setSending] = useState(false);
 
   function confirmClear() {
-    Alert.alert('Clear all data?', 'This removes your tasks and schedule from this device.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Clear', style: 'destructive', onPress: () => { clearAll(); router.back(); } },
-    ]);
+    confirmDestructive({
+      title: 'Clear all data?',
+      message: 'This removes your to-dos, classes, and schedule from this device.',
+      confirmLabel: 'Clear',
+      onConfirm: () => {
+        clearAll();
+        router.back();
+      },
+    });
   }
 
   async function submitFeedback() {
@@ -91,7 +97,7 @@ export default function SettingsScreen() {
       <SectionLabel>Send feedback</SectionLabel>
       <Card style={styles.block}>
         <Text variant="body" color={C.textSecondary} style={{ marginBottom: Spacing.three }}>
-          Ideas, bugs, or anything at all — it goes straight to the people building Pawse. 🐱
+          Ideas, bugs, or anything — it goes straight to Jane Zhang, the developer. 🐱
         </Text>
         <TextInput
           value={feedback}
@@ -115,33 +121,35 @@ export default function SettingsScreen() {
         <Button title="Send feedback" onPress={submitFeedback} loading={sending} disabled={sending} />
       </Card>
 
-      <SectionLabel>Pawse server (advanced)</SectionLabel>
-      <Card style={styles.block}>
-        <Text variant="body" color={C.textSecondary} style={{ marginBottom: Spacing.three }}>
-          Pawse&apos;s AI engine — a small backend that turns your to-dos and class photo into a
-          plan. Leave this blank to use the built-in on-device planner; paste your deployed
-          server&apos;s URL once you have one.
-        </Text>
-        <TextInput
-          value={urlDraft}
-          onChangeText={setUrlDraft}
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="url"
-          placeholder="https://your-pawse-server.fly.dev"
-          placeholderTextColor={C.textMuted}
-          style={styles.input}
-        />
-        <View style={{ height: Spacing.three }} />
-        <Button
-          title="Save server URL"
-          variant="secondary"
-          onPress={() => {
-            setBackendUrl(urlDraft);
-            toast('Saved — Pawse will use this server.');
-          }}
-        />
-      </Card>
+      {/* Dev-only: pointing the app at a local server is a developer's need.
+          Shipping it to students exposes a field where a wrong (or hostile)
+          URL silently sends their schedule somewhere else. */}
+      {__DEV__ && (
+        <>
+          <SectionLabel>Pawse server (dev only)</SectionLabel>
+          <Card style={styles.block}>
+            <TextInput
+              value={urlDraft}
+              onChangeText={setUrlDraft}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+              placeholder="http://localhost:8787"
+              placeholderTextColor={C.textMuted}
+              style={styles.input}
+            />
+            <View style={{ height: Spacing.three }} />
+            <Button
+              title="Save server URL"
+              variant="secondary"
+              onPress={() => {
+                setBackendUrl(urlDraft);
+                toast('Saved — Pawse will use this server.');
+              }}
+            />
+          </Card>
+        </>
+      )}
 
       <SectionLabel>About</SectionLabel>
       <Card style={styles.block}>
@@ -152,7 +160,7 @@ export default function SettingsScreen() {
         </Row>
         <Divider />
         <Text variant="caption" color={C.textMuted} style={{ paddingTop: Spacing.three }}>
-          Pawse — your calm in college life. Made with 🐱
+          Pawse — your calm in college life.
         </Text>
       </Card>
 
