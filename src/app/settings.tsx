@@ -1,25 +1,25 @@
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { TimeField } from '@/components/TimeField';
 import { Button, C, Card, Screen, SectionLabel, Text } from '@/components/ui';
-import { Radius, Spacing } from '@/constants/theme';
+import { Fonts, Radius, Spacing } from '@/constants/theme';
 import { sendFeedback } from '@/lib/api';
 import { confirmDestructive } from '@/lib/confirm';
 import { toast } from '@/lib/toast';
 import { usePlanStore } from '@/store/usePlanStore';
+
+const DEVELOPER_URL = 'https://imjane.top';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const preferences = usePlanStore((s) => s.preferences);
   const setPreferences = usePlanStore((s) => s.setPreferences);
   const backendUrl = usePlanStore((s) => s.backendUrl);
-  const setBackendUrl = usePlanStore((s) => s.setBackendUrl);
   const clearAll = usePlanStore((s) => s.clearAll);
 
-  const [urlDraft, setUrlDraft] = useState(backendUrl);
   const [feedback, setFeedback] = useState('');
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
@@ -97,7 +97,17 @@ export default function SettingsScreen() {
       <SectionLabel>Send feedback</SectionLabel>
       <Card style={styles.block}>
         <Text variant="body" color={C.textSecondary} style={{ marginBottom: Spacing.three }}>
-          Ideas, bugs, or anything — it goes straight to Jane Zhang, the developer. 🐱
+          Ideas, bugs, or anything — it goes straight to{' '}
+          <Text
+            variant="body"
+            color={C.text}
+            style={styles.devLink}
+            onPress={() => void Linking.openURL(DEVELOPER_URL)}
+            accessibilityRole="link"
+          >
+            Jane Zhang
+          </Text>
+          , the developer. 🐱
         </Text>
         <TextInput
           value={feedback}
@@ -120,36 +130,6 @@ export default function SettingsScreen() {
         <View style={{ height: Spacing.three }} />
         <Button title="Send feedback" onPress={submitFeedback} loading={sending} disabled={sending} />
       </Card>
-
-      {/* Dev-only: pointing the app at a local server is a developer's need.
-          Shipping it to students exposes a field where a wrong (or hostile)
-          URL silently sends their schedule somewhere else. */}
-      {__DEV__ && (
-        <>
-          <SectionLabel>Pawse server (dev only)</SectionLabel>
-          <Card style={styles.block}>
-            <TextInput
-              value={urlDraft}
-              onChangeText={setUrlDraft}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-              placeholder="http://localhost:8787"
-              placeholderTextColor={C.textMuted}
-              style={styles.input}
-            />
-            <View style={{ height: Spacing.three }} />
-            <Button
-              title="Save server URL"
-              variant="secondary"
-              onPress={() => {
-                setBackendUrl(urlDraft);
-                toast('Saved — Pawse will use this server.');
-              }}
-            />
-          </Card>
-        </>
-      )}
 
       <SectionLabel>About</SectionLabel>
       <Card style={styles.block}>
@@ -230,6 +210,7 @@ const styles = StyleSheet.create({
     backgroundColor: C.backgroundSelected,
   },
   block: { marginBottom: Spacing.five },
+  devLink: { fontFamily: Fonts.bold, textDecorationLine: 'underline' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

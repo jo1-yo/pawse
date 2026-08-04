@@ -12,7 +12,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { C, Text } from '@/components/ui';
 import { Brand, Radius, Spacing } from '@/constants/theme';
-import { readScheduleImage } from '@/lib/classPhoto';
+import { PHOTO_FAIL, readScheduleImage } from '@/lib/classPhoto';
 import { usePlanStore } from '@/store/usePlanStore';
 
 const PASTE_KEYS =
@@ -22,6 +22,7 @@ export function ClassPhotoZone() {
   const scheduleImageBase64 = usePlanStore((s) => s.scheduleImageBase64);
   const setScheduleImage = usePlanStore((s) => s.setScheduleImage);
   const parsingClasses = usePlanStore((s) => s.parsingClasses);
+  const status = usePlanStore((s) => s.scheduleImageStatus);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [pasteArmed, setPasteArmed] = useState(false);
@@ -133,8 +134,10 @@ export function ClassPhotoZone() {
   }
 
   if (scheduleImageBase64) {
+    const failed = !parsingClasses && (status === 'unreadable' || status === 'error');
+    const fail = failed ? PHOTO_FAIL[status as 'unreadable' | 'error'] : null;
     return (
-      <View style={styles.attached}>
+      <View style={[styles.attached, failed && styles.attachedFailed]}>
         {previewUri ? (
           <Image source={{ uri: previewUri }} style={styles.thumb} contentFit="cover" />
         ) : (
@@ -143,16 +146,25 @@ export function ClassPhotoZone() {
           </View>
         )}
         <View style={{ flex: 1 }}>
-          <Text variant="label" color={C.text}>
-            Timetable attached
+          <Text variant="label" color={fail ? Brand.deadline : C.text}>
+            {fail ? fail.title : 'Timetable attached'}
           </Text>
           <Text variant="caption" color={parsingClasses ? C.tint : C.textMuted}>
-            {parsingClasses ? 'Reading your classes…' : 'Classes it finds appear in your list'}
+            {parsingClasses
+              ? 'Reading your classes…'
+              : (fail?.hint ?? 'Classes it finds appear in your list')}
           </Text>
         </View>
-        <Pressable onPress={() => { setScheduleImage(null, null); setPreviewUri(null); }} hitSlop={8}>
+        <Pressable
+          onPress={() => {
+            setScheduleImage(null, null);
+            setPreviewUri(null);
+            if (failed) void upload();
+          }}
+          hitSlop={8}
+        >
           <Text variant="caption" color={C.tint}>
-            Remove
+            {failed ? 'Try another' : 'Remove'}
           </Text>
         </Pressable>
       </View>
@@ -216,6 +228,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.three,
   },
+  attachedFailed: { borderColor: Brand.deadline },
   thumb: { width: 48, height: 48, borderRadius: Radius.sm },
   thumbFallback: {
     width: 48,

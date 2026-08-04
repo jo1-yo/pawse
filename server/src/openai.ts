@@ -62,6 +62,9 @@ export async function extractCoursesOpenAI(
       },
       body: JSON.stringify({
         model: OPENAI_MODEL,
+        // Transcription, not deduction: the schema does the structuring, so
+        // reasoning tokens here only add latency the student waits through.
+        reasoning_effort: 'minimal',
         messages: [
           { role: 'system', content: VISION_SYSTEM },
           {

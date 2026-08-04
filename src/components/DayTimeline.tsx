@@ -86,14 +86,12 @@ export function DayTimeline({
   onSelectDate,
   onBack,
   onEventPress,
-  onAddEvent,
 }: {
   date: string;
   events: PlanEvent[];
   onSelectDate: (date: string) => void;
   onBack: () => void;
   onEventPress: (event: PlanEvent) => void;
-  onAddEvent: (date: string) => void;
 }) {
   const today = isoDate(new Date());
   const selected = dayjs(date);
@@ -131,21 +129,11 @@ export function DayTimeline({
 
   return (
     <View style={styles.wrap}>
-      {/* ‹ month backlink + add, mirroring Apple's day-view nav bar */}
+      {/* ‹ month backlink, mirroring Apple's day-view nav bar */}
       <View style={styles.nav}>
         <Pressable onPress={onBack} hitSlop={10} style={styles.backBtn}>
           <Text variant="label" color={C.tint}>
             ‹ {selected.format('MMMM')}
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => onAddEvent(date)}
-          hitSlop={10}
-          style={styles.addBtn}
-          accessibilityLabel="Add a block on this day"
-        >
-          <Text variant="label" color={C.textSecondary}>
-            +
           </Text>
         </Pressable>
       </View>
@@ -273,14 +261,6 @@ const styles = StyleSheet.create({
   wrap: { gap: Spacing.two },
   nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   backBtn: { paddingVertical: Spacing.one },
-  addBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: Radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: C.backgroundSelected,
-  },
   strip: { flexDirection: 'row', alignItems: 'center' },
   weekNav: { width: 24, alignItems: 'center', justifyContent: 'center' },
   stripCell: { flex: 1, alignItems: 'center', gap: 3, paddingVertical: Spacing.one },

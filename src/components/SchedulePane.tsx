@@ -28,16 +28,10 @@ import type { CalendarProvider, PlanEvent } from '@/types/plan';
 
 export function SchedulePane({
   onEditEvent,
-  onAddEvent,
   onToggleDone,
-  onReplan,
-  replanning,
 }: {
   onEditEvent: (event: PlanEvent) => void;
-  onAddEvent: (date?: string) => void;
   onToggleDone: (event: PlanEvent) => void;
-  onReplan: () => void;
-  replanning: boolean;
 }) {
   const plan = usePlanStore((s) => s.plan);
   const tasks = usePlanStore((s) => s.tasks);
@@ -140,17 +134,13 @@ export function SchedulePane({
 
   return (
     <View style={styles.pane}>
-      {/* One clean header: title + add. The schedule is month-only, Apple-
-          Calendar style — tap a day to drop into its timeline. */}
+      {/* The schedule is month-only, Apple-Calendar style — tap a day to drop
+          into its timeline, tap a block to edit it. Placing blocks by hand is
+          the planner's job, driven by the rhythm already set in onboarding. */}
       <View style={styles.head}>
         <Text variant="subtitle" style={{ flexGrow: 1 }}>
           Schedule
         </Text>
-        <Pressable onPress={() => onAddEvent()} style={styles.addBtn} hitSlop={8} accessibilityLabel="Add a block">
-          <Text variant="label" color={C.textSecondary}>
-            +
-          </Text>
-        </Pressable>
       </View>
 
       {feasibility && <FeasibilityBanner feasibility={feasibility} />}
@@ -162,7 +152,6 @@ export function SchedulePane({
           onSelectDate={setDayDetail}
           onBack={() => setDayDetail(null)}
           onEventPress={onEditEvent}
-          onAddEvent={onAddEvent}
         />
       ) : (
         <MonthCalendar events={events} onDayPress={setDayDetail} onEventPress={onEditEvent} />
@@ -178,17 +167,6 @@ export function SchedulePane({
 
       {hasEvents && (
         <View style={styles.actions}>
-          {/* Always offer the rebuild: to-dos and classes change far more often
-              than blocks get checked off, and both leave the plan stale. */}
-          <View style={styles.action}>
-            <Button
-              title="Re-plan"
-              variant="secondary"
-              onPress={onReplan}
-              loading={replanning}
-              disabled={replanning}
-            />
-          </View>
           {/* One-tap export — the calendar connected at onboarding leads;
               picking the other one switches the default. */}
           <View style={[styles.action, styles.actionWide]}>

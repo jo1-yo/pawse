@@ -47,6 +47,13 @@ const GREETING: ChatMessage = {
     "Hey, take a breath! 🐱💕 I'm Pawse. Tell me what's stressing you out, or add your classes and to-dos and I'll build you a calm, doable schedule. You've got this. ✨",
 };
 
+/**
+ * Outcome of reading the attached timetable photo.
+ * 'idle' not read yet · 'read' classes found · 'unreadable' no timetable in
+ * the image · 'error' the read itself failed (offline, server down).
+ */
+export type PhotoStatus = 'idle' | 'read' | 'unreadable' | 'error';
+
 interface PlanState {
   // ---- inputs ----
   scheduleText: string;
@@ -54,8 +61,12 @@ interface PlanState {
   scheduleImageMime: string | null;
   /** True while the backend is reading the photo into classes (transient). */
   parsingClasses: boolean;
-  /** True once the attached photo has been read into class rows (transient). */
-  scheduleImageRead: boolean;
+  /**
+   * How the attached photo's read went (transient). 'unreadable' means the
+   * read succeeded but found no classes — usually the image isn't a timetable
+   * — which the UI must show rather than leaving the card looking attached.
+   */
+  scheduleImageStatus: PhotoStatus;
   tasks: TaskInput[];
   classEntries: ClassEntry[];
   preferences: Preferences;
@@ -72,6 +83,11 @@ interface PlanState {
   chat: ChatMessage[];
 
   // ---- settings ----
+  /**
+   * Where the timetable-photo reader lives. A build-time constant from
+   * app.json's `extra.backendUrl` — deliberately not user-editable and not
+   * persisted, so a stale value can never outlive a redeploy.
+   */
   backendUrl: string;
   /** OAuth access token for direct Google Calendar write (null = not linked). */
   googleAccessToken: string | null;
@@ -82,7 +98,7 @@ interface PlanState {
   setScheduleText: (text: string) => void;
   setScheduleImage: (base64: string | null, mime: string | null) => void;
   setParsingClasses: (value: boolean) => void;
-  setScheduleImageRead: (value: boolean) => void;
+  setScheduleImageStatus: (value: PhotoStatus) => void;
   addTask: (partial?: Partial<TaskInput>) => void;
   updateTask: (id: string, patch: Partial<TaskInput>) => void;
   removeTask: (id: string) => void;
@@ -99,7 +115,6 @@ interface PlanState {
   addPlanEvent: (event: PlanEvent) => void;
   updatePlanEvent: (id: string, patch: Partial<PlanEvent>) => void;
   removePlanEvent: (id: string) => void;
-  setBackendUrl: (url: string) => void;
   setGoogleToken: (token: string, expiresAt: number) => void;
   clearGoogleToken: () => void;
   addChatMessage: (msg: ChatMessage) => void;
@@ -171,7 +186,7 @@ export const usePlanStore = create<PlanState>()(
       scheduleImageBase64: null,
       scheduleImageMime: null,
       parsingClasses: false,
-      scheduleImageRead: false,
+      scheduleImageStatus: 'idle',
       tasks: [],
       classEntries: [],
       preferences: { ...DEFAULT_PREFERENCES, timezone: getDeviceTimezone() },
@@ -187,9 +202,9 @@ export const usePlanStore = create<PlanState>()(
 
       setScheduleText: (text) => set({ scheduleText: text }),
       setScheduleImage: (base64, mime) =>
-        set({ scheduleImageBase64: base64, scheduleImageMime: mime, scheduleImageRead: false }),
+        set({ scheduleImageBase64: base64, scheduleImageMime: mime, scheduleImageStatus: 'idle' }),
       setParsingClasses: (value) => set({ parsingClasses: value }),
-      setScheduleImageRead: (value) => set({ scheduleImageRead: value }),
+      setScheduleImageStatus: (value) => set({ scheduleImageStatus: value }),
       addTask: (partial) =>
         set((s) => replan(s, { tasks: [...s.tasks, { ...freshTask(), ...partial }] })),
       updateTask: (id, patch) =>
@@ -237,8 +252,7 @@ export const usePlanStore = create<PlanState>()(
         set((s) =>
           s.plan ? { plan: { ...s.plan, events: s.plan.events.filter((e) => e.id !== id) } } : {},
         ),
-      setBackendUrl: (url) => set({ backendUrl: url.trim() }),
-      setGoogleToken: (token, expiresAt) =>
+          setGoogleToken: (token, expiresAt) =>
         set({ googleAccessToken: token, googleTokenExpiresAt: expiresAt }),
       clearGoogleToken: () => set({ googleAccessToken: null, googleTokenExpiresAt: null }),
       addChatMessage: (msg) => set((s) => ({ chat: [...s.chat, msg] })),
@@ -248,14 +262,13 @@ export const usePlanStore = create<PlanState>()(
           scheduleText: '',
           scheduleImageBase64: null,
           scheduleImageMime: null,
+          scheduleImageStatus: 'idle' as PhotoStatus,
           tasks: [],
           classEntries: [],
           courses: [],
           plan: null,
           chat: [GREETING],
-          // keep preferences + backendUrl
-          preferences: s.preferences,
-          backendUrl: s.backendUrl,
+          preferences: s.preferences, // rhythm settings survive a clear
         })),
     }),
     {
@@ -275,7 +288,6 @@ export const usePlanStore = create<PlanState>()(
         onboarded: s.onboarded,
         calendarProvider: s.calendarProvider,
         plan: s.plan,
-        backendUrl: s.backendUrl,
         googleAccessToken: s.googleAccessToken,
         googleTokenExpiresAt: s.googleTokenExpiresAt,
         // chat + raw image are intentionally not persisted

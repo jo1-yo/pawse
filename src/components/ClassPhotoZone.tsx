@@ -9,8 +9,8 @@ import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { C, Text } from '@/components/ui';
-import { Radius, Spacing } from '@/constants/theme';
-import { readScheduleImage } from '@/lib/classPhoto';
+import { Brand, Radius, Spacing } from '@/constants/theme';
+import { PHOTO_FAIL, readScheduleImage } from '@/lib/classPhoto';
 import { toast } from '@/lib/toast';
 import { usePlanStore } from '@/store/usePlanStore';
 
@@ -18,6 +18,7 @@ export function ClassPhotoZone() {
   const scheduleImageBase64 = usePlanStore((s) => s.scheduleImageBase64);
   const setScheduleImage = usePlanStore((s) => s.setScheduleImage);
   const parsingClasses = usePlanStore((s) => s.parsingClasses);
+  const status = usePlanStore((s) => s.scheduleImageStatus);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
 
   async function pick(fromCamera: boolean) {
@@ -40,8 +41,9 @@ export function ClassPhotoZone() {
   }
 
   if (scheduleImageBase64) {
+    const failed = !parsingClasses && (status === 'unreadable' || status === 'error');
     return (
-      <View style={styles.attached}>
+      <View style={[styles.attached, failed && styles.attachedFailed]}>
         {previewUri ? (
           <Image source={{ uri: previewUri }} style={styles.thumb} contentFit="cover" />
         ) : (
@@ -50,16 +52,27 @@ export function ClassPhotoZone() {
           </View>
         )}
         <View style={{ flex: 1 }}>
-          <Text variant="label" color={C.text}>
-            Timetable attached
+          <Text variant="label" color={failed ? Brand.deadline : C.text}>
+            {failed ? PHOTO_FAIL[status as 'unreadable' | 'error'].title : 'Timetable attached'}
           </Text>
           <Text variant="caption" color={parsingClasses ? C.tint : C.textMuted}>
-            {parsingClasses ? 'Reading your classes…' : 'Classes it finds appear in your list'}
+            {parsingClasses
+              ? 'Reading your classes…'
+              : failed
+                ? PHOTO_FAIL[status as 'unreadable' | 'error'].hint
+                : 'Classes it finds appear in your list'}
           </Text>
         </View>
-        <Pressable onPress={() => { setScheduleImage(null, null); setPreviewUri(null); }} hitSlop={8}>
+        <Pressable
+          onPress={() => {
+            setScheduleImage(null, null);
+            setPreviewUri(null);
+            if (failed) void pick(false);
+          }}
+          hitSlop={8}
+        >
           <Text variant="caption" color={C.tint}>
-            Remove
+            {failed ? 'Try another' : 'Remove'}
           </Text>
         </Pressable>
       </View>
@@ -119,6 +132,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.three,
   },
+  attachedFailed: { borderColor: Brand.deadline },
   thumb: { width: 48, height: 48, borderRadius: Radius.sm },
   thumbFallback: {
     width: 48,

@@ -23,13 +23,11 @@ const TYPES: { value: EventType; label: string }[] = [
 
 export function EventEditor({
   event,
-  isNew,
   onSave,
   onDelete,
   onClose,
 }: {
   event: PlanEvent | null;
-  isNew: boolean;
   onSave: (event: PlanEvent) => void;
   onDelete: () => void;
   onClose: () => void;
@@ -47,7 +45,7 @@ export function EventEditor({
       <View style={styles.center} pointerEvents="box-none">
         <View style={styles.card}>
           <Text variant="subtitle" style={{ marginBottom: Spacing.four }}>
-            {isNew ? 'Add a block' : 'Edit block'}
+            Edit block
           </Text>
 
           <TextInput
@@ -99,14 +97,12 @@ export function EventEditor({
           />
 
           <View style={styles.actions}>
-            <Button title={isNew ? 'Add to schedule' : 'Save'} onPress={() => onSave(draft)} />
-            {!isNew && (
-              <Pressable onPress={onDelete} style={styles.delete} hitSlop={8}>
-                <Text variant="label" color={Brand.deadline}>
-                  Delete block
-                </Text>
-              </Pressable>
-            )}
+            <Button title="Save" onPress={() => onSave(draft)} />
+            <Pressable onPress={onDelete} style={styles.delete} hitSlop={8}>
+              <Text variant="label" color={Brand.deadline}>
+                Delete block
+              </Text>
+            </Pressable>
           </View>
         </View>
       </View>
