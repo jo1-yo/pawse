@@ -26,9 +26,11 @@ export function FeasibilityBanner({ feasibility }: { feasibility: Feasibility })
         <Text variant="label" color={accent} style={styles.headline}>
           {feasibility.headline}
         </Text>
-        <Text variant="caption" color={C.textSecondary} style={styles.detail}>
-          {feasibility.detail}
-        </Text>
+        {feasibility.detail ? (
+          <Text variant="caption" color={C.textSecondary} style={styles.detail}>
+            {feasibility.detail}
+          </Text>
+        ) : null}
       </View>
     </View>
   );

@@ -153,6 +153,42 @@ textarea {
   color: var(--text-muted);
 }
 
+/* Clickable card header that collapses / expands the section below it. */
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+/* A thin caret drawn from two borders — crisp at any size. It points right
+   when the section is collapsed and rotates to point down when expanded. */
+.card-head .chevron {
+  width: 7px;
+  height: 7px;
+  border: solid var(--text-secondary);
+  border-width: 0 2px 2px 0;
+  transform: rotate(-45deg);
+  transform-origin: center;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+  flex: 0 0 auto;
+  margin-right: 3px;
+}
+
+.card-head:hover .chevron {
+  border-color: var(--text);
+}
+
+.card-head .chevron.open {
+  transform: rotate(45deg);
+}
+
 /* ---------- inputs ---------- */
 
 .field {
@@ -491,6 +527,17 @@ textarea.field {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ---------- calendar export ---------- */
+
+.export-row {
+  display: flex;
+  gap: 8px;
+}
+
+.export-row .btn-secondary {
+  flex: 1;
 }
 
 /* ---------- misc ---------- */
