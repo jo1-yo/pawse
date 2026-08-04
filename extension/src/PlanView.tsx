@@ -13,14 +13,31 @@ const EVENT_COLORS: Record<string, string> = {
   other: '#9a9aa8',
 };
 
-export default function PlanView({ plan, tasks }: { plan: Plan; tasks: TaskInput[] }) {
+// Where each service lets you import a .ics file. Apple Calendar has no web
+// import page — on a Mac/iPhone the downloaded file opens straight into it.
+const CALENDAR_IMPORT_URLS = {
+  google: 'https://calendar.google.com/calendar/u/0/r/settings/export',
+  outlook: 'https://outlook.live.com/calendar/0/addcalendar',
+} as const;
+
+type CalendarTarget = 'apple' | 'google' | 'outlook';
+
+export default function PlanView({
+  plan,
+  tasks,
+  onNotify,
+}: {
+  plan: Plan;
+  tasks: TaskInput[];
+  onNotify?: (message: string) => void;
+}) {
   const feasibility = useMemo(
     () => analyzeFeasibility(tasks, plan.events, new Date()),
     [tasks, plan],
   );
   const days = useMemo(() => groupByDate(plan.events), [plan]);
 
-  const exportIcs = () => {
+  const downloadIcs = () => {
     const blob = new Blob([buildIcs(plan)], { type: 'text/calendar' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -28,6 +45,22 @@ export default function PlanView({ plan, tasks }: { plan: Plan; tasks: TaskInput
     a.download = 'pawse-week.ics';
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Always save the .ics first (stays on the device), then send the user to that
+  // calendar's import screen so they can pick the file they just downloaded.
+  const exportTo = (target: CalendarTarget) => {
+    downloadIcs();
+    if (target === 'apple') {
+      onNotify?.('Saved pawse-week.ics — open the file to add it to Apple Calendar.');
+      return;
+    }
+    window.open(CALENDAR_IMPORT_URLS[target], '_blank', 'noopener');
+    onNotify?.(
+      target === 'google'
+        ? 'Saved pawse-week.ics — in the Google Calendar tab, click Import and choose it.'
+        : 'Saved pawse-week.ics — in the Outlook tab, choose Upload from file and pick it.',
+    );
   };
 
   return (
@@ -59,10 +92,19 @@ export default function PlanView({ plan, tasks }: { plan: Plan; tasks: TaskInput
         ))}
       </div>
       {plan.warnings.length > 0 && <div className="note">{plan.warnings.join(' ')}</div>}
-      <button className="btn-secondary" onClick={exportIcs}>
-        Export .ics
-      </button>
-      <div className="note">Import the file into Apple, Google, or Outlook Calendar.</div>
+      <div className="label">Add to calendar</div>
+      <div className="export-row">
+        <button className="btn-secondary" onClick={() => exportTo('apple')}>
+          Apple
+        </button>
+        <button className="btn-secondary" onClick={() => exportTo('google')}>
+          Google
+        </button>
+        <button className="btn-secondary" onClick={() => exportTo('outlook')}>
+          Outlook
+        </button>
+      </div>
+      <div className="note">Saves a .ics file, then opens that calendar so you can import it.</div>
     </section>
   );
 }

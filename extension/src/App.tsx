@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type InputHTMLAttributes } from 'react';
 
 import type { Course, Plan, TaskInput } from '@/types/plan';
 import { addDays, formatDeadline, formatTime, isoDate, localDate } from '@/lib/datetime';
@@ -60,6 +60,52 @@ function sleepHours(sleepTime: string, wakeTime: string): number {
   return Math.round((mins / 60) * 10) / 10;
 }
 
+type NumberFieldProps = Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  'value' | 'onChange' | 'onFocus' | 'onBlur' | 'type'
+> & {
+  value: number;
+  onCommit: (n: number) => void;
+};
+
+/**
+ * A number input you can actually clear and retype — not just nudge with the
+ * arrows. It holds the raw text so the field can sit empty mid-edit; it commits
+ * a value only once the text parses to a real number, and snaps the display back
+ * to the last good value if you leave it blank.
+ */
+function NumberField({ value, onCommit, className = 'field', ...rest }: NumberFieldProps) {
+  const [draft, setDraft] = useState(() => String(value));
+  const editing = useRef(false);
+
+  // Follow the outside value only while the user isn't typing, so an in-progress
+  // edit is never yanked out from under them.
+  useEffect(() => {
+    if (!editing.current) setDraft(String(value));
+  }, [value]);
+
+  return (
+    <input
+      {...rest}
+      type="number"
+      className={className}
+      value={draft}
+      onFocus={() => {
+        editing.current = true;
+      }}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setDraft(raw);
+        if (raw !== '' && Number.isFinite(Number(raw))) onCommit(Number(raw));
+      }}
+      onBlur={() => {
+        editing.current = false;
+        if (draft === '' || !Number.isFinite(Number(draft))) setDraft(String(value));
+      }}
+    />
+  );
+}
+
 export default function App() {
   const [state] = useState(loadState);
   const [tasks, setTasks] = useState<TaskInput[]>(state.tasks);
@@ -78,6 +124,8 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [toast, setToast] = useState('');
+  const [openDue, setOpenDue] = useState(true);
+  const [openRhythm, setOpenRhythm] = useState(true);
   const fileInput = useRef<HTMLInputElement>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -186,7 +234,7 @@ export default function App() {
   };
 
   const generate = () => {
-    if (!tasks.length || busy) return;
+    if (busy) return;
     setBusy(true);
     try {
       const now = new Date();
@@ -287,12 +335,22 @@ export default function App() {
           className="field"
           placeholder={'Or paste it as text, like "CS 101 MWF 9:00-9:50am"'}
           value={scheduleText}
+          maxLength={2000}
           onChange={(e) => setScheduleText(e.target.value)}
         />
       </section>
 
       <section className="card">
-        <h2>What&apos;s due</h2>
+        <button
+          className="card-head"
+          onClick={() => setOpenDue((o) => !o)}
+          aria-expanded={openDue}
+        >
+          <h2>What&apos;s due</h2>
+          <span className={`chevron${openDue ? ' open' : ''}`} aria-hidden />
+        </button>
+        {openDue && (
+        <>
         {tasks.map((t) => (
           <div className="task" key={t.id}>
             <span className="emoji">{taskEmoji(t.title)}</span>
@@ -322,6 +380,7 @@ export default function App() {
               className="field"
               placeholder="e.g. CS project"
               value={draftTitle}
+              maxLength={100}
               onChange={(e) => setDraftTitle(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') addTask();
@@ -357,15 +416,13 @@ export default function App() {
             <label className="label" htmlFor="task-hours">
               Hours to finish
             </label>
-            <input
+            <NumberField
               id="task-hours"
-              className="field"
-              type="number"
               min={0.5}
               step={0.5}
               value={draftHours}
               title="How many hours of work you still need to finish this"
-              onChange={(e) => setDraftHours(Number(e.target.value) || 1)}
+              onCommit={setDraftHours}
             />
           </div>
             <button className="btn-secondary fit" onClick={addTask}>
@@ -373,15 +430,25 @@ export default function App() {
             </button>
           </div>
         </div>
+        </>
+        )}
       </section>
 
       <section className="card">
-        <h2>
-          Your rhythm{' '}
-          <span className={`badge ${nightHours < 7 ? 'warn' : 'ok'}`}>
-            {nightHours < 7 ? `${nightHours}h sleep, aim for 7 to 9` : `${nightHours}h sleep`}
-          </span>
-        </h2>
+        <button
+          className="card-head"
+          onClick={() => setOpenRhythm((o) => !o)}
+          aria-expanded={openRhythm}
+        >
+          <h2>
+            Your rhythm{' '}
+            <span className={`badge ${nightHours < 7 ? 'warn' : 'ok'}`}>
+              {nightHours < 7 ? `${nightHours}h sleep, aim for 7 to 9` : `${nightHours}h sleep`}
+            </span>
+          </h2>
+          <span className={`chevron${openRhythm ? ' open' : ''}`} aria-hidden />
+        </button>
+        {openRhythm && (
         <div className="habit-grid">
           <div>
             <label className="label" htmlFor="pref-wake">
@@ -411,83 +478,64 @@ export default function App() {
             <label className="label" htmlFor="pref-focus">
               Focus block (min)
             </label>
-            <input
+            <NumberField
               id="pref-focus"
-              className="field"
-              type="number"
               min={15}
               max={180}
               step={5}
               value={prefs.studyBlockMinutes}
-              onChange={(e) =>
-                setPrefs({ ...prefs, studyBlockMinutes: Number(e.target.value) || 50 })
-              }
+              onCommit={(n) => setPrefs({ ...prefs, studyBlockMinutes: n })}
             />
           </div>
           <div>
             <label className="label" htmlFor="pref-break">
               Break (min)
             </label>
-            <input
+            <NumberField
               id="pref-break"
-              className="field"
-              type="number"
               min={0}
               max={60}
               step={5}
               value={prefs.breakMinutes}
-              onChange={(e) => setPrefs({ ...prefs, breakMinutes: Number(e.target.value) || 0 })}
+              onCommit={(n) => setPrefs({ ...prefs, breakMinutes: n })}
             />
           </div>
           <div>
             <label className="label" htmlFor="pref-max">
               Max study per day (h)
             </label>
-            <input
+            <NumberField
               id="pref-max"
-              className="field"
-              type="number"
               min={1}
               max={12}
               step={0.5}
               value={prefs.maxStudyMinutesPerDay / 60}
-              onChange={(e) =>
-                setPrefs({
-                  ...prefs,
-                  maxStudyMinutesPerDay: Math.round((Number(e.target.value) || 6) * 60),
-                })
-              }
+              onCommit={(h) => setPrefs({ ...prefs, maxStudyMinutesPerDay: Math.round(h * 60) })}
             />
           </div>
           <div>
             <label className="label" htmlFor="pref-weekend">
               Weekend hours/day
             </label>
-            <input
+            <NumberField
               id="pref-weekend"
-              className="field"
-              type="number"
               min={0}
               max={12}
               step={0.5}
               value={prefs.weekendStudyHours ?? 3}
               title="How many hours you're up for working on each weekend day"
-              onChange={(e) =>
-                setPrefs({ ...prefs, weekendStudyHours: Number(e.target.value) || 0 })
-              }
+              onCommit={(n) => setPrefs({ ...prefs, weekendStudyHours: n })}
             />
           </div>
         </div>
+        )}
       </section>
 
-      <button className="btn-primary" onClick={generate} disabled={!tasks.length || busy}>
+      <button className="btn-primary" onClick={generate} disabled={busy}>
         {busy ? 'Planning your week…' : plan ? 'Update my schedule' : 'Generate my schedule'}
       </button>
-      {!tasks.length && <div className="empty">Add at least one task to plan your week.</div>}
 
-      {plan && <PlanView plan={plan} tasks={tasks} />}
-
-      <div className="note">No sign-up. Everything stays on your device.</div>
+      {plan && <PlanView plan={plan} tasks={tasks} onNotify={showToast} />}
 
       {toast && <div className="toast">{toast}</div>}
     </>

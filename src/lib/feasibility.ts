@@ -121,8 +121,8 @@ export function analyzeFeasibility(tasks: TaskInput[], events: PlanEvent[], now:
 
   return {
     verdict: 'on-track',
-    headline: "You're on track",
-    detail: 'Your work is spread out with breaks and finishes before every deadline. 🐱',
+    headline: "You're on track 🐱",
+    detail: '',
     tasks: sorted,
   };
 }
