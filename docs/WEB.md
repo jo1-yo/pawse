@@ -68,17 +68,27 @@ cross-origin without changes.
 
 ## 3. Point a domain at it
 
-Once you own the domain, add it in the host's dashboard and create the records
-it shows you. For Vercel that's:
+The site's domain is **paws3.com**, registered at Domain.com.
 
-| Host | Type | Value |
-| --- | --- | --- |
-| `@` | A | `76.76.21.21` |
-| `www` | CNAME | `cname.vercel-dns.com` |
+In Vercel: Project → Settings → Domains → Add `paws3.com`. It will offer to add
+`www.paws3.com` too — take it, and point the apex at the www version or vice
+versa so only one is canonical.
 
-Always copy the values from the dashboard rather than this table — hosts change
-them. HTTPS is issued automatically once DNS resolves (usually minutes, up to a
-few hours).
+Vercel then shows the exact records to create. **Copy them from that screen** —
+don't reuse values from a blog post or an older version of this file. The apex
+is an `A` record, and the `www` CNAME target is now *per-project* (it looks like
+`d1d4fc829fe7bc7c.vercel-dns-017.com`, not a shared `cname.vercel-dns.com`).
+
+Add those records at Domain.com under the domain's DNS settings. Delegating
+nameservers to Vercel instead also works, but then every record — including any
+future MX record for email on this domain — has to be recreated in Vercel.
+
+HTTPS is issued automatically once DNS resolves: usually minutes, occasionally
+a few hours.
+
+Finally set `EXPO_PUBLIC_SITE_URL=https://paws3.com` in the Vercel project's
+environment variables and redeploy — it's inlined at build time, so the
+canonical and og:image URLs only pick it up on the next build.
 
 ---
 

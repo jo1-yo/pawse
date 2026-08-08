@@ -11,7 +11,7 @@ import { BRAND } from '@/lib/config';
  * The canonical origin comes from `EXPO_PUBLIC_SITE_URL` at build time so the
  * absolute og:image/canonical URLs follow whatever domain we deploy to.
  */
-const SITE_URL = (process.env.EXPO_PUBLIC_SITE_URL ?? 'https://pawse.com').replace(/\/$/, '');
+const SITE_URL = (process.env.EXPO_PUBLIC_SITE_URL ?? 'https://paws3.com').replace(/\/$/, '');
 
 const TITLE = `${BRAND.name} — ${BRAND.tagline}`;
 
