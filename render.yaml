@@ -14,3 +14,23 @@ services:
     envVars:
       - key: OPENAI_API_KEY
         sync: false # set in the Render dashboard, not in Git
+
+  # The web app itself — the Expo static export. Alternative to Vercel if you'd
+  # rather keep site + backend in one dashboard. Attach the custom domain under
+  # this service's Settings → Custom Domains.
+  - type: web
+    name: pawse-web
+    runtime: static
+    buildCommand: npm install && npm run build:web
+    staticPublishPath: ./dist
+    autoDeploy: true
+    envVars:
+      - key: EXPO_PUBLIC_SITE_URL
+        value: https://pawse.com # update if you land on a different domain
+    routes:
+      - type: rewrite
+        source: /settings
+        destination: /settings.html
+      - type: rewrite
+        source: /onboarding
+        destination: /onboarding.html
