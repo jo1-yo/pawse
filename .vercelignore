@@ -1,0 +1,15 @@
+# Vercel only ever builds the Expo web export from this repo.
+#
+# Without this file the CLI detects server/ as a Hono service and switches the
+# project into multi-service mode, which then rejects the top-level
+# buildCommand/outputDirectory in vercel.json as "ambiguous".
+#
+# Excluding server/ also keeps server/.env — which holds the real API key —
+# off the upload entirely.
+server/
+extension/
+docs/
+
+# Build artifacts and local caches; Vercel produces dist/ itself.
+dist/
+.expo/
