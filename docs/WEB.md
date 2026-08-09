@@ -45,14 +45,30 @@ npx vercel --prod
 First run asks to link the directory to a project — accept the defaults; it
 reads `vercel.json` for the rest. You get a `*.vercel.app` URL immediately.
 
-`.vercelignore` keeps `server/` out of the upload. That matters for two
-reasons: the CLI otherwise detects it as a Hono service and switches the
-project into multi-service mode (which rejects the top-level `buildCommand`
-and `outputDirectory` as ambiguous), and `server/.env` holds the real API key.
-The backend is deployed separately on Render and is not Vercel's business.
+### Why vercel.json uses `services`
 
-If a stale project was already created during a failed attempt, `rm -rf .vercel`
-and re-run to relink from scratch.
+Vercel CLI 58 scans the working tree and finds `server/` — a Hono app — so it
+offers to set the project up in multi-service mode. Accepting that rejects a
+top-level `buildCommand` / `outputDirectory`, because with several services the
+owner of those keys is ambiguous:
+
+```
+Error: The top-level properties `buildCommand`, `outputDirectory` cannot be
+used with `services` because the owning service is ambiguous.
+```
+
+So `vercel.json` declares exactly one service — `web`, rooted at the repo root,
+building the Expo export — and a catch-all rewrite that makes it the public
+surface. Declaring services explicitly also stops auto-detection, so `server/`
+is never built here. The backend stays on Render.
+
+Note this is *not* what `.vercelignore` does: detection reads the local working
+tree before anything is uploaded, so ignoring `server/` there does not prevent
+it. `.vercelignore` earns its place by keeping `server/.env` — which holds the
+live API key — off Vercel entirely.
+
+If a stale project was created during a failed attempt, `rm -rf .vercel` and
+re-run to relink from scratch.
 
 Set the canonical origin so `og:image` and `<link rel="canonical">` point at the
 real domain (Project → Settings → Environment Variables):

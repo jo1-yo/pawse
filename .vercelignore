@@ -1,11 +1,7 @@
-# Vercel only ever builds the Expo web export from this repo.
-#
-# Without this file the CLI detects server/ as a Hono service and switches the
-# project into multi-service mode, which then rejects the top-level
-# buildCommand/outputDirectory in vercel.json as "ambiguous".
-#
-# Excluding server/ also keeps server/.env — which holds the real API key —
-# off the upload entirely.
+# Trimmed from the upload. Note this does NOT affect service detection — the
+# CLI scans the local working tree before uploading — so the `services` key in
+# vercel.json is what actually keeps server/ from being built here. This file's
+# real job is keeping server/.env, which holds the live API key, off Vercel.
 server/
 extension/
 docs/
