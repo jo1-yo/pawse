@@ -1,30 +1,99 @@
 /**
- * Forwards in-app feedback to wherever the founder wants to receive it, set via
- * the single env var FEEDBACK_WEBHOOK_URL. The payload is sent with both
- * `content` (Discord) and `text` (Slack) keys, so a free Discord or Slack
- * incoming webhook works out of the box — and you can point it at any HTTP
- * intake later (Productlane/Zapier/your own) without an app update.
+ * Queues in-app feedback for a webhook without making the student wait for the
+ * destination (Google Apps Script, Discord, Slack, etc.). Render is a long-lived
+ * Node process, so the delivery promise can finish after the HTTP response has
+ * already been returned to the app.
  *
- * If FEEDBACK_WEBHOOK_URL is unset, feedback is just logged (still captured in
- * your server logs). No third-party account is required to start.
+ * The structured fields power the Google Doc receiver while `content` and
+ * `text` preserve compatibility with Discord and Slack incoming webhooks.
  */
+
+import { randomUUID } from 'node:crypto';
 
 import type { FeedbackRequest } from './schema.js';
 
-export async function forwardFeedback(fb: FeedbackRequest): Promise<void> {
-  const meta = [fb.email && `from ${fb.email}`, fb.platform && `${fb.platform} v${fb.appVersion ?? '?'}`]
+const DELIVERY_TIMEOUT_MS = 8_000;
+const RETRY_DELAYS_MS = [0, 500, 1_500] as const;
+
+interface FeedbackEnvelope extends FeedbackRequest {
+  event: 'pawse.feedback';
+  id: string;
+  receivedAt: string;
+  content: string;
+  text: string;
+  secret?: string;
+}
+
+function makeEnvelope(fb: FeedbackRequest): FeedbackEnvelope {
+  const meta = [
+    fb.email && `from ${fb.email}`,
+    fb.platform && `${fb.platform} v${fb.appVersion ?? '?'}`,
+  ]
     .filter(Boolean)
     .join(' · ');
   const text = `📨 Pawse feedback${meta ? ` (${meta})` : ''}:\n${fb.message}`;
 
-  const url = process.env.FEEDBACK_WEBHOOK_URL;
-  if (!url) {
-    console.log('[feedback]', text);
-    return;
-  }
-  await fetch(url, {
+  return {
+    event: 'pawse.feedback',
+    id: randomUUID(),
+    receivedAt: new Date().toISOString(),
+    ...fb,
+    content: text,
+    text,
+    secret: process.env.FEEDBACK_WEBHOOK_SECRET || undefined,
+  };
+}
+
+async function postEnvelope(url: string, envelope: FeedbackEnvelope): Promise<void> {
+  const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content: text, text }),
+    body: JSON.stringify(envelope),
+    signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS),
   });
+  const body = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`webhook returned ${response.status}${body ? `: ${body.slice(0, 200)}` : ''}`);
+  }
+
+  // Google Apps Script cannot reliably choose an HTTP error status, so its
+  // JSON body is authoritative when it explicitly reports a failure.
+  try {
+    const parsed = JSON.parse(body) as { ok?: boolean; error?: string };
+    if (parsed.ok === false) throw new Error(parsed.error || 'webhook rejected feedback');
+  } catch (err) {
+    if (err instanceof SyntaxError) return; // Discord/Slack often return empty or plain text.
+    throw err;
+  }
+}
+
+async function deliverWithRetry(url: string, envelope: FeedbackEnvelope): Promise<void> {
+  let lastError: unknown;
+  for (const delayMs of RETRY_DELAYS_MS) {
+    if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
+    try {
+      await postEnvelope(url, envelope);
+      return;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError;
+}
+
+/** Queue one feedback message and return its traceable delivery id immediately. */
+export function queueFeedback(fb: FeedbackRequest): string {
+  const envelope = makeEnvelope(fb);
+  const url = process.env.FEEDBACK_WEBHOOK_URL;
+
+  if (!url) {
+    console.log('[feedback]', JSON.stringify(envelope));
+    return envelope.id;
+  }
+
+  void deliverWithRetry(url, envelope).catch((err) => {
+    console.error(`[feedback] delivery failed (${envelope.id}):`, err);
+  });
+  return envelope.id;
 }

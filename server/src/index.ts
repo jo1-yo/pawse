@@ -7,7 +7,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
 import { makeChatReply } from './chat.js';
-import { forwardFeedback } from './feedback.js';
+import { queueFeedback } from './feedback.js';
 import { extractCourses, makePlan } from './plan.js';
 import { ChatRequestZ, FeedbackRequestZ, ParseClassesRequestZ, PlanRequestZ } from './schema.js';
 
@@ -47,14 +47,22 @@ app.get('/privacy', (c) =>
 <style>body{max-width:720px;margin:40px auto;padding:0 20px;font:16px/1.6 -apple-system,system-ui,sans-serif;color:#1d1d1f}h1{font-size:28px}h2{font-size:19px;margin-top:32px}small{color:#666}a{color:#1d1d1f}</style>
 </head><body>
 <h1>Pawse — Privacy Policy</h1>
-<small>Last updated: 2026-07-30</small>
+<small>Last updated: 2026-08-06</small>
 <p>Pawse is a study planner (iOS app, website, and Chrome extension) that turns your classes and deadlines into a weekly schedule. This policy explains what we do — and don't — do with your information.</p>
-<h2>What stays on your device</h2>
-<p>Your tasks, classes, generated schedule, and settings are stored <strong>locally on your own device</strong> (browser storage / on-device app storage). We do not have accounts, and this information is never sent to us or anyone else.</p>
-<h2>Timetable photos</h2>
-<p>If you choose to add classes by <strong>photo</strong>, that single image is sent to Pawse's own server, which passes it to an AI vision provider (OpenAI) <strong>only</strong> to read the class names and times printed on it. The image is processed in memory and is <strong>not stored, logged, or shared</strong>, and is never used for advertising or sold to anyone. If you type or paste your classes instead, no image is sent.</p>
+<h2>Where your data lives</h2>
+<p>Your tasks, classes, generated schedule, and settings are stored <strong>locally on your own device</strong> (browser storage / on-device app storage). Pawse has <strong>no accounts</strong> and we keep no copy of your schedule on our servers. To <em>build</em> a schedule, though, some of what you type has to leave your device — exactly what, and where it goes, is spelled out below.</p>
+<h2>What we send to AI providers</h2>
+<p>Pawse's own server passes your request to third-party AI providers, which generate the schedule or reply. We send only what the feature needs, and only when you trigger it:</p>
+<ul>
+<li><strong>Building a schedule</strong> — when you tap "Generate my schedule", your to-do titles, time estimates, deadlines, priorities, notes, any class text you entered, and your time preferences are sent to our server, which forwards them to <strong>Anthropic (Claude)</strong> via <strong>fal.ai</strong>.</li>
+<li><strong>Timetable photos</strong> — if you add classes by <strong>photo</strong>, that single image goes to our server, which passes it to an AI vision provider (<strong>OpenAI</strong>, or <strong>Google Gemini</strong> via fal.ai as a fallback) <strong>only</strong> to read the class names and times printed on it. If you type or paste your classes instead, no image is sent.</li>
+<li><strong>Chat</strong> — messages you send to the Pawse companion are forwarded to <strong>Anthropic (Claude)</strong> via <strong>fal.ai</strong> to produce a reply.</li>
+</ul>
+<p>We do not store or log this content on our server — it is processed in memory and passed through. It is never used for advertising and never sold. The providers process it under their own terms to return a result; we do not permit them to use it to train their models. Pawse's chat companion is not a therapist or a medical service.</p>
+<h2>Feedback you choose to send</h2>
+<p>If you use the in-app feedback form, the message you write — plus your email address <em>only if you choose to type one</em>, and your platform and app version — is delivered to our private feedback inbox so we can reply and fix things. Leave the email blank and your note stays anonymous.</p>
 <h2>What we do NOT collect</h2>
-<p>No names, emails, passwords, payment details, location, browsing history, or analytics profiles. Pawse does not track you across sites.</p>
+<p>No accounts or passwords, no payment details, no location, no contacts, no browsing history, no advertising identifiers, and no analytics profiles. Pawse does not track you across apps or sites. We never ask for your email except on the optional feedback form above.</p>
 <h2>Permissions (Chrome extension)</h2>
 <ul>
 <li><strong>Side panel</strong> — to show Pawse in the browser's side panel.</li>
@@ -62,7 +70,7 @@ app.get('/privacy', (c) =>
 <li><strong>Access to the Pawse server</strong> — to send a timetable photo for reading, as described above.</li>
 </ul>
 <h2>Data selling &amp; transfer</h2>
-<p>We do not sell or transfer your data to third parties, do not use it for any purpose unrelated to building your schedule, and do not use it to determine creditworthiness or for lending.</p>
+<p>We do not sell your data, and we do not share it with anyone beyond the AI providers named above, who act only to return your schedule or reply. We do not use your data for any purpose unrelated to building your schedule, and never to determine creditworthiness or for lending.</p>
 <h2>Contact</h2>
 <p>Questions? Email <a href="mailto:janezhang555l@gmail.com">janezhang555l@gmail.com</a>.</p>
 </body></html>`),
@@ -151,13 +159,8 @@ app.post('/api/feedback', async (c) => {
   if (!parsed.success) {
     return c.json({ error: 'Please include a message.' }, 400);
   }
-  try {
-    await forwardFeedback(parsed.data);
-    return c.json({ ok: true });
-  } catch (err) {
-    console.error('[feedback] error:', err);
-    return c.json({ error: 'Could not send feedback right now.' }, 502);
-  }
+  const id = queueFeedback(parsed.data);
+  return c.json({ ok: true, queued: true, id }, 202);
 });
 
 const port = Number(process.env.PORT ?? 8787);

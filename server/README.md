@@ -18,7 +18,7 @@ npm run dev              # http://localhost:8787  (tsx watch)
 |---|---|---|---|
 | GET | `/health` | — | `{ ok, service }` |
 | POST | `/api/plan` | `{ scheduleText?, scheduleImageBase64?, scheduleImageMime?, tasks[], preferences, nowISO }` | `Plan` (courses, events, summary, warnings, range, timezone) |
-| POST | `/api/feedback` | `{ message, email?, platform?, appVersion? }` | `{ ok }` — forwards to `FEEDBACK_WEBHOOK_URL` (free Discord/Slack webhook), else logs |
+| POST | `/api/feedback` | `{ message, email?, platform?, appVersion? }` | HTTP 202 `{ ok, queued, id }` — responds immediately, then retries delivery to `FEEDBACK_WEBHOOK_URL` in the background |
 | POST | `/api/chat` | `{ messages: {role, content}[] }` | `{ reply }` — kept for reuse; the current app has no chat UI |
 
 Request/response shapes are validated with zod in `src/schema.ts` and mirror the
@@ -45,7 +45,16 @@ app's `src/types/plan.ts`.
 | `PORT` | `8787` | |
 | `PLAN_MODEL` | `anthropic/claude-3.5-sonnet` | any valid any-llm model id |
 | `VISION_MODEL` | `google/gemini-2.0-flash-001` | proven vision id |
-| `FEEDBACK_WEBHOOK_URL` | — | where in-app feedback goes; a **free** Discord/Slack incoming webhook (phone notifications at $0). Unset = log only. |
+| `FEEDBACK_WEBHOOK_URL` | — | Google Apps Script `/exec` URL (recommended), Discord, or Slack. Unset = structured server log only. |
+| `FEEDBACK_WEBHOOK_SECRET` | — | Shared secret for the Google Doc receiver. Set the same value in Apps Script property `PAWSE_FEEDBACK_SECRET`. |
+
+## Google Doc feedback inbox
+
+The app acknowledges feedback immediately; the server then retries webhook
+delivery up to three times. To append every note to a private Google Doc, follow
+[`google-apps-script/README.md`](./google-apps-script/README.md). The receiver
+uses a shared secret and writes the message, timestamp, email, platform, app
+version, and delivery id into the configured document.
 
 ## Deploy
 

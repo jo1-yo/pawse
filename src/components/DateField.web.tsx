@@ -24,12 +24,14 @@ export function DateField({ value, onChange }: { value: string; onChange: (date:
 /** Shared dark-theme styling for the web date/time inputs. */
 export const webFieldStyle = {
   fontFamily: 'DMSans_600SemiBold, system-ui, sans-serif',
-  fontSize: 15,
+  // Two of these plus an arrow have to fit one phone-width row (the planning
+  // window in the header), so the box stays tight.
+  fontSize: 13,
   color: C.text,
   background: C.background,
   border: `1px solid ${C.border}`,
   borderRadius: 10,
-  padding: '7px 12px',
+  padding: '7px 6px',
   colorScheme: 'dark',
   outline: 'none',
   cursor: 'pointer',

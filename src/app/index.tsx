@@ -139,10 +139,34 @@ export default function PlanScreen() {
     <Screen scroll glow center maxWidth={wide ? 1120 : undefined}>
       {/* One header row: brand, the (quiet) planning window, settings. */}
       <View style={styles.header}>
-        <CatMascot size={40} />
-        <Text variant="subtitle" style={{ fontSize: 22, flex: 1 }}>
-          {BRAND.name}
-        </Text>
+        {/* Brand and settings share the top line so the gear stays pinned to
+            the top-right corner; the planning window wraps underneath it
+            rather than pushing the gear onto a line of its own. */}
+        <View style={styles.brandRow}>
+          <CatMascot size={40} />
+          <Text variant="subtitle" style={{ fontSize: 22, flex: 1 }}>
+            {BRAND.name}
+          </Text>
+          <Pressable
+            onPress={() => router.push('/settings')}
+            hitSlop={10}
+            style={styles.gear}
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+          >
+            <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+              <Circle cx={12} cy={12} r={3.1} stroke={C.textSecondary} strokeWidth={1.7} />
+              <Path
+                d={GEAR_PATH}
+                stroke={C.textSecondary}
+                strokeWidth={1.7}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
+          </Pressable>
+        </View>
+
         <View style={styles.window}>
           <DateField value={planRange.start} onChange={(start) => setPlanRange({ start })} />
           <Text variant="caption" color={C.textMuted}>
@@ -150,18 +174,6 @@ export default function PlanScreen() {
           </Text>
           <DateField value={planRange.end} onChange={(end) => setPlanRange({ end })} />
         </View>
-        <Pressable onPress={() => router.push('/settings')} hitSlop={10} style={styles.gear}>
-          <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-            <Circle cx={12} cy={12} r={3.1} stroke={C.textSecondary} strokeWidth={1.7} />
-            <Path
-              d={GEAR_PATH}
-              stroke={C.textSecondary}
-              strokeWidth={1.7}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </Svg>
-        </Pressable>
       </View>
 
       {wide ? (
@@ -190,13 +202,8 @@ export default function PlanScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: Spacing.three,
-    marginVertical: Spacing.five,
-  },
+  header: { gap: Spacing.three, marginVertical: Spacing.five },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   gear: {
     width: 40,
     height: 40,
@@ -204,7 +211,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  window: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginEnd: Spacing.two },
+  window: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.two },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.five },
   stack: { gap: Spacing.five },
   col: { flex: 1 },

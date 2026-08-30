@@ -5,7 +5,7 @@ import { Linking, Platform, Pressable, StyleSheet, TextInput, View } from 'react
 
 import { TimeField } from '@/components/TimeField';
 import { Button, C, Card, Screen, SectionLabel, Text } from '@/components/ui';
-import { Fonts, Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { sendFeedback } from '@/lib/api';
 import { confirmDestructive } from '@/lib/confirm';
 import { toast } from '@/lib/toast';
@@ -31,33 +31,43 @@ export default function SettingsScreen() {
       confirmLabel: 'Clear',
       onConfirm: () => {
         clearAll();
-        router.back();
+        toast('Cleared — your week is empty again 🐱');
+        // Settings shows none of the cleared data, so leaving the student here
+        // looks like nothing happened. back() is a dead end when Settings was
+        // opened directly (deep link, or a refresh on this route).
+        if (router.canGoBack()) router.back();
+        else router.replace('/');
       },
     });
   }
 
-  async function submitFeedback() {
+  function submitFeedback() {
     const message = feedback.trim();
     if (!message) {
       toast('Type a message first 🐱');
       return;
     }
+    const replyEmail = email.trim();
     setSending(true);
-    try {
-      await sendFeedback(backendUrl, {
-        message,
-        email: email.trim() || undefined,
-        platform: Platform.OS,
-        appVersion: Constants.expoConfig?.version,
-      });
-      setFeedback('');
-      setEmail('');
-      toast('Thanks — your note reached the Pawse team 🐱');
-    } catch (err) {
-      toast(`Couldn't send: ${(err as Error).message}`);
-    } finally {
-      setSending(false);
-    }
+    setFeedback('');
+    setEmail('');
+    toast('Thanks — sending your note now 🐱');
+
+    // The UI reacts immediately; delivery continues in the background. If the
+    // network fails, restore the note so the student never loses what they wrote.
+    void sendFeedback(backendUrl, {
+      message,
+      email: replyEmail || undefined,
+      platform: Platform.OS,
+      appVersion: Constants.expoConfig?.version,
+    })
+      .then(() => toast('Your note reached the Pawse team 🐱'))
+      .catch((err) => {
+        setFeedback((current) => current || message);
+        setEmail((current) => current || replyEmail);
+        toast(`Couldn't send — your note is still here. ${(err as Error).message}`);
+      })
+      .finally(() => setSending(false));
   }
 
   return (
@@ -210,7 +220,7 @@ const styles = StyleSheet.create({
     backgroundColor: C.backgroundSelected,
   },
   block: { marginBottom: Spacing.five },
-  devLink: { fontFamily: Fonts.bold, textDecorationLine: 'underline' },
+  devLink: { textDecorationLine: 'underline' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
